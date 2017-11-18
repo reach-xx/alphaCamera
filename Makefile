@@ -3,31 +3,36 @@
 include ../Makefile.param
 
 # target source
-INC	 := -I./interface/ -I./strategy/
+INC := -I./tracker/ \
+   -I./ \
+   -I./sender/
 HEADS:=$(wildcard *.h)
 SRC  := $(wildcard *.c) 
-VDA_SAMPLE_SRC := $(wildcard interface/*.c) $(wildcard strategy/*.c)
+MODULE_SRC := $(wildcard tracker/*.c) \
+   $(wildcard sender/*.c)
 OBJ  := $(SRC:%.c=%.o) 
-VDA_SAMPLE_OBJ  := $(VDA_SAMPLE_SRC:%.c=%.o)
+MODULE_OBJ  := $(MODULE_SRC:%.c=%.o)
 TARGET := $(OBJ:%.o=%)
 .PHONY : clean all
+
+CFLAGS += $(INC)
 
 all: $(TARGET)
 
 MPI_LIBS += $(REL_LIB)/libtde.a
 
-$(TARGET):%:%.o $(COMM_OBJ) $(VDA_SAMPLE_OBJ) $(HEADS)
-	$(CC) $(CFLAGS) -lpthread -lm -g -o $@ $^ $(INC) $(MPI_LIBS) $(AUDIO_LIBA) $(SENSOR_LIBS) $(HVD_LIBS)
+$(TARGET):%:%.o $(COMM_OBJ) $(MODULE_OBJ) $(HEADS)
+	$(CC) $(CFLAGS) -lpthread -lm -g -o $@ $^ $(MPI_LIBS) $(AUDIO_LIBA) $(SENSOR_LIBS) $(HVD_LIBS)
 
 # compile linux or HuaweiLite
-include $(PWD)/../Make.$(OSTYPE)
+#include $(PWD)/../Make.$(OSTYPE)
 
 clean:
 	@echo "$(CFLAGS)"
-	@echo "$(VDA_SAMPLE_OBJ)"
+	@echo "$(MODULE_OBJ)"
 	@rm -f $(TARGET)
 	@echo $(OBJ)
 	@rm -f $(OBJ)
 	@rm -f $(COMM_OBJ)
-	@rm -f $(VDA_SAMPLE_OBJ)
+	@rm -f $(MODULE_OBJ)
 
