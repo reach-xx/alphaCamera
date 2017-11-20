@@ -18,7 +18,6 @@ extern "C" {
 
 #include "sample_comm.h"
 
-
 /*4K 缩放1080P   分辨率*/
 #define HI_ZOOM_WIDTH		1920
 #define HI_ZOOM_HEIGHT		1080
@@ -87,6 +86,30 @@ HI_S32 RH_MPI_Bind_VI_VPSS(VI_CHN 		   ViChn, VPSS_GRP VpssGrp)
 }
 
 
+/*解绑定VI------VPSS组*/
+HI_S32 RH_MPI_UnBind_VI_VPSS(VI_CHN 		   ViChn, VPSS_GRP VpssGrp)
+{
+	HI_S32    s32Ret = HI_SUCCESS;
+    MPP_CHN_S stSrcChn;
+    MPP_CHN_S stDestChn;
+	
+    stSrcChn.enModId  = HI_ID_VIU;
+    stSrcChn.s32DevId = 0;
+    stSrcChn.s32ChnId = ViChn;
+
+    stDestChn.enModId  = HI_ID_VPSS;
+    stDestChn.s32DevId = VpssGrp;
+    stDestChn.s32ChnId = 0;
+
+    s32Ret = HI_MPI_SYS_UnBind(&stSrcChn, &stDestChn);
+    if (s32Ret != HI_SUCCESS)
+    {
+        SAMPLE_PRT(" failed with %#x!\n", s32Ret);
+        return HI_FAILURE;
+    }	
+	return s32Ret;
+}
+
 
 /*裁剪VPSS通道*/
 HI_S32 RH_MPI_VPSS_SetChnCrop(VPSS_CHN VpssChn , RECT_S *pCropRect)
@@ -148,10 +171,12 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 	u32BlkSize = SAMPLE_COMM_SYS_CalcPicVbBlkSize(enNorm, PIC_HD1080, pixel_format, SAMPLE_SYS_ALIGN_WIDTH);
 	stVbConf.astCommPool[0].u32BlkSize = u32BlkSize;
 	stVbConf.astCommPool[0].u32BlkCnt = 20;
+	printf("111111--------buffer:%d\n",u32BlkSize * 20);
 
 	u32BlkSize = SAMPLE_COMM_SYS_CalcPicVbBlkSize(enNorm, PIC_UHD4K, pixel_format, SAMPLE_SYS_ALIGN_WIDTH);
 	stVbConf.astCommPool[1].u32BlkSize = u32BlkSize;
 	stVbConf.astCommPool[1].u32BlkCnt = 10;
+	printf("22222--------buffer:%d\n",u32BlkSize * 10);
 
 	s32Ret = SAMPLE_COMM_SYS_GetPicSize(enNorm, PIC_UHD4K, &stSize);
 	if (HI_SUCCESS != s32Ret)	  {
@@ -169,14 +194,8 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 	s32Ret = SAMPLE_COMM_VI_StartVi(&stViConfig);
 	if (HI_SUCCESS != s32Ret)	{
 		SAMPLE_PRT("start vi failed!  s32Ret:0x%x\n",s32Ret); 
-		return s32Ret;
+		goto END_1080P_1;
 	}
-
-	s32Ret = HI_MPI_VI_SetFrameDepth(ViChn, u32Depth);
-	if(HI_SUCCESS != s32Ret)
-	{
-		SAMPLE_PRT("set VI frame depth error, s32Ret:0x%x\n",s32Ret);
-	}	
 
 	stGrpVpssAttr.u32MaxW = stSize.u32Width;
 	stGrpVpssAttr.u32MaxH = stSize.u32Height;
@@ -197,7 +216,7 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 	if (s32Ret != HI_SUCCESS)
 	{
 		SAMPLE_PRT("HI_MPI_VPSS_StartGrp failed with %#x\n", s32Ret);
-		goto END_1080P_3;
+		goto END_1080P_2;
 	}	
 
 	/*通道1为 --------- 4K 缩放1080P*/
@@ -208,7 +227,7 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 	if (s32Ret != HI_SUCCESS)
 	{
 		SAMPLE_PRT("HI_MPI_VPSS_SetChnAttr failed with %#x!\n", s32Ret);
-		goto END_1080P_4;
+		goto END_1080P_3;
 	}
 	
 	stVpssMode.enChnMode		= VPSS_CHN_MODE_USER;
@@ -220,15 +239,14 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 	s32Ret =  HI_MPI_VPSS_SetChnMode(VpssGrp, VpssChn, &stVpssMode);
 	if (s32Ret != HI_SUCCESS)	 {
 		SAMPLE_PRT("HI_MPI_VPSS_SetChnMode failed with %#x!\n", s32Ret);
-		goto END_1080P_4;
+		goto END_1080P_3;
 	}
 
 	s32Ret =  HI_MPI_VPSS_EnableChn(VpssGrp, VpssChn);
 	if (s32Ret != HI_SUCCESS)	 {
 		SAMPLE_PRT("HI_MPI_VPSS_EnableChn failed with %#x!\n", s32Ret);
-		goto END_1080P_4;
+		goto END_1080P_3;
 	}
-
 
 	/*通道2 -----------裁剪1080P*/
 	RECT_S crop_rect = {200,200,HI_CROP_WIDTH,HI_CROP_HEIGHT};
@@ -240,7 +258,7 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 	s32Ret = HI_MPI_VPSS_SetChnAttr(VpssGrp, VpssChn2, &stChnAttr); 	
 	if (s32Ret != HI_SUCCESS)	 {
 		SAMPLE_PRT("HI_MPI_VPSS_SetChnAttr failed with %#x!\n", s32Ret);
-		goto END_1080P_5;
+		goto END_1080P_3;
 	}
 	stVpssMode.enChnMode	  = VPSS_CHN_MODE_USER;
 	stVpssMode.bDouble		  = HI_FALSE;
@@ -251,13 +269,13 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 	s32Ret =  HI_MPI_VPSS_SetChnMode(VpssGrp, VpssChn2, &stVpssMode);
 	if (s32Ret != HI_SUCCESS)	 {
 		SAMPLE_PRT("HI_MPI_VPSS_SetChnMode failed with %#x!\n", s32Ret);
-		goto END_1080P_5;
+		goto END_1080P_3;
 	}
 
 	s32Ret =  HI_MPI_VPSS_EnableChn(VpssGrp, VpssChn2);
 	if (s32Ret != HI_SUCCESS)	 {
 		SAMPLE_PRT("HI_MPI_VPSS_EnableChn failed with %#x!\n", s32Ret);
-		goto END_1080P_5;
+		goto END_1080P_3;
 	}	
 
 	/*通道三 ，用于跟踪*/
@@ -268,7 +286,7 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 	if (s32Ret != HI_SUCCESS)
 	{
 		SAMPLE_PRT("HI_MPI_VPSS_SetChnAttr failed with %#x!\n", s32Ret);
-		goto END_1080P_5;
+		goto END_1080P_4;
 	}
 	stVpssMode.enChnMode		= VPSS_CHN_MODE_USER;
 	stVpssMode.bDouble			= HI_FALSE;
@@ -280,21 +298,14 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 	if (s32Ret != HI_SUCCESS)
 	{
 		SAMPLE_PRT("HI_MPI_VPSS_SetChnMode failed with %#x!\n", s32Ret);
-		goto END_1080P_5;
+		goto END_1080P_4;
 	}
 	
-	s32Ret =  HI_MPI_VPSS_SetDepth(VpssGrp, VpssChn3, u32Depth);
-	if (s32Ret != HI_SUCCESS)
-	{
-		SAMPLE_PRT("HI_MPI_VPSS_SetDepth failed with %#x!\n", s32Ret);
-		goto END_1080P_5;
-	}
-
 	s32Ret =  HI_MPI_VPSS_EnableChn(VpssGrp, VpssChn3);
 	if (s32Ret != HI_SUCCESS)
 	{
 		SAMPLE_PRT("HI_MPI_VPSS_EnableChn failed with %#x!\n", s32Ret);
-		goto END_1080P_5;
+		goto END_1080P_4;
 	}
 
 	s32Ret = RH_MPI_Bind_VI_VPSS(ViChn, VpssGrp);
@@ -303,9 +314,11 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 		SAMPLE_PRT("failed with %#x!\n", s32Ret);
 		goto END_1080P_5;
 	}
-	
-	VPSS_CHN curVpssChn = 0;
-	
+
+
+	/*启动视频编码---------第一路->4K缩放1080P编码         第二路-->裁剪的1080P	*/
+	/*第三路    为跟踪分析的编码360P*/
+	VPSS_CHN curVpssChn = 0;	
 	for (i = 0; i < S32EncChnNum; i++) {
 		
 		switch(i)
@@ -348,37 +361,52 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 	        SAMPLE_PRT("Start Venc  bind vpss failed!\n");
 	        goto END_1080P_6;
 	    }		
-		printf("----------------------------------Venc:%d\n",VencChn);
 	}
+
 	
 	/*启动编码接收数据*/
 	s32Ret = RH_MPI_VENC_StartGetStream(S32EncChnNum);
     if (HI_SUCCESS != s32Ret)
     {
         SAMPLE_PRT("Start Venc failed!\n");
-        //goto END_1080P_6;
+        goto END_1080P_7;
     }	
 
-	while(1) {
-		sleep(10);
-	}
-
-END_1080P_1:
+	/*分析算法启动*/	
+	RH_Track_Algorithm_Start(VpssChn3);	
 	
-
-END_1080P_2:
+	getchar();
+	getchar();
 	
-
-END_1080P_3:
-
-
-END_1080P_4:
-	
-
-END_1080P_5:
-
+END_1080P_8:	
+	RH_Track_Algorithm_Stop();
+	RH_MPI_VENC_StopGetStream();	
+END_1080P_7:
+	VencChn = 0;
+	curVpssChn = VpssChn;
+	SAMPLE_COMM_VENC_UnBindVpss(VencChn,VpssGrp,curVpssChn);
+	SAMPLE_COMM_VENC_Stop(VencChn);	
+	VencChn = 1;
+	curVpssChn = VpssChn2;
+	SAMPLE_COMM_VENC_Stop(VencChn);	
+	SAMPLE_COMM_VENC_UnBindVpss(VencChn,VpssGrp,curVpssChn);
+	VencChn = 2;
+	curVpssChn = VpssChn3;
+	SAMPLE_COMM_VENC_Stop(VencChn);	
+	SAMPLE_COMM_VENC_UnBindVpss(VencChn,VpssGrp,curVpssChn);
 END_1080P_6:
-
+	RH_MPI_UnBind_VI_VPSS(ViChn, VpssGrp);
+END_1080P_5:
+	SAMPLE_COMM_VPSS_DisableChn(VpssGrp, VpssChn3);
+END_1080P_4:
+	SAMPLE_COMM_VPSS_DisableChn(VpssGrp, VpssChn2);
+END_1080P_3:
+    SAMPLE_COMM_VPSS_DisableChn(VpssGrp, VpssChn);
+    SAMPLE_COMM_VPSS_StopGroup(VpssGrp);
+END_1080P_2:
+	SAMPLE_COMM_VI_StopVi(&stViConfig);
+END_1080P_1:
+	SAMPLE_COMM_SYS_Exit();
 	return s32Ret;
 }
 

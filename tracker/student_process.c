@@ -79,6 +79,8 @@ int Reach_Track_start()
 	
 	return 1;
 }
+
+
 int Reach_Track_run(HI_U8* pVirAddr,rect_t* rect)
 {
 	int64_t t1,t2;
@@ -130,6 +132,5 @@ void Reach_Track_stop()
 {
 	g_track_param.dynamic_param.control_mode = 1;
 }
-
 
 
