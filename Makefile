@@ -6,7 +6,9 @@ include ../Makefile.param
 INC := -I./tracker/ \
    -I./ \
    -I./sender/ \
-   -I./protocol/
+   -I./protocol/\
+   -I./rtsp
+
 HEADS:=$(wildcard *.h)
 SRC  := $(wildcard *.c) 
 MODULE_SRC := $(wildcard tracker/*.c) \
