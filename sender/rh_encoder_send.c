@@ -935,7 +935,6 @@ HI_VOID* RH_MPI_VENC_GetVencStreamProc(HI_VOID* p)
 	                        break;
 	                    }
                     }
-//					printf("---------------------------------------:%d\n",i);					
 				
                     /*******************************************************
                      step 2.6 : release stream
