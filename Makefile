@@ -5,11 +5,14 @@ include ../Makefile.param
 # target source
 INC := -I./tracker/ \
    -I./ \
-   -I./sender/
+   -I./sender/ \
+   -I./protocol/
 HEADS:=$(wildcard *.h)
 SRC  := $(wildcard *.c) 
 MODULE_SRC := $(wildcard tracker/*.c) \
-   $(wildcard sender/*.c)
+   $(wildcard sender/*.c) \
+   $(wildcard protocol/*.c)
+
 OBJ  := $(SRC:%.c=%.o) 
 MODULE_OBJ  := $(MODULE_SRC:%.c=%.o)
 TARGET := $(OBJ:%.o=%)

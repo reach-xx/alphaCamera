@@ -374,6 +374,8 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 
 	/*分析算法启动*/	
 	RH_Track_Algorithm_Start(VpssChn3);	
+	/*VISCA协议*/
+	RH_UDP_Proto_Start();
 	
 	getchar();
 	getchar();
