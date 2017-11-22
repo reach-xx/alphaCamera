@@ -30,7 +30,6 @@ extern "C" {
 #define HI_TRACK_HEIGHT		360
 
 
-
 /******************************************************************************
 * function : to process abnormal case
 ******************************************************************************/
@@ -118,14 +117,18 @@ HI_S32 RH_MPI_VPSS_SetChnCrop(VPSS_CHN VpssChn , RECT_S *pCropRect)
 	VPSS_CROP_INFO_S stVpssCropInfo = {0};
 	VPSS_GRP  	VpssGrp =  0;	
 	HI_S32 		s32Ret = HI_SUCCESS ;
+
+	SAMPLE_PRT("Crop: X=%d   Y =%d   width: %d   height:%d  \n",pCropRect->s32X,
+					pCropRect->s32Y,pCropRect->u32Width,pCropRect->u32Height);
 	
     stVpssCropInfo.bEnable 				= HI_TRUE;
     stVpssCropInfo.enCropCoordinate 	= VPSS_CROP_ABS_COOR;
-    stVpssCropInfo.stCropRect.s32X 		= pCropRect->s32X;
-    stVpssCropInfo.stCropRect.s32Y 		= pCropRect->s32Y;
-    stVpssCropInfo.stCropRect.u32Width  = pCropRect->u32Width;
-    stVpssCropInfo.stCropRect.u32Height = pCropRect->u32Height;
-    s32Ret = HI_MPI_VPSS_SetChnCrop(VpssGrp, VpssChn, &stVpssCropInfo);
+    stVpssCropInfo.stCropRect.s32X 		= CEILING_2_POWER(pCropRect->s32X,2);
+    stVpssCropInfo.stCropRect.s32Y 		= CEILING_2_POWER(pCropRect->s32Y,2);
+    stVpssCropInfo.stCropRect.u32Width  = CEILING_2_POWER(pCropRect->u32Width,2);
+    stVpssCropInfo.stCropRect.u32Height = CEILING_2_POWER(pCropRect->u32Height,2);
+
+	s32Ret = HI_MPI_VPSS_SetExtChnCrop(VpssGrp, VpssChn, &stVpssCropInfo);
     if (HI_SUCCESS != s32Ret)
     {
         SAMPLE_PRT("set VPSS group crop Failed! 0x%x\n", s32Ret);
@@ -135,6 +138,33 @@ HI_S32 RH_MPI_VPSS_SetChnCrop(VPSS_CHN VpssChn , RECT_S *pCropRect)
 	return s32Ret;
 
 }
+
+/*获取裁剪VPSS通道*/
+HI_S32 RH_MPI_VPSS_GetChnCrop(VPSS_CHN VpssChn , RECT_S *pCropRect)
+{
+
+	VPSS_CROP_INFO_S stVpssCropInfo = {0};
+	VPSS_GRP  	VpssGrp =  0;	
+	HI_S32 		s32Ret = HI_SUCCESS ;
+	
+    stVpssCropInfo.bEnable 				= HI_TRUE;
+    stVpssCropInfo.enCropCoordinate 	= VPSS_CROP_ABS_COOR;
+	s32Ret = HI_MPI_VPSS_GetExtChnCrop(VpssGrp, VpssChn, &stVpssCropInfo);
+    if (HI_SUCCESS != s32Ret)
+    {
+        SAMPLE_PRT("Get VPSS group crop Failed! 0x%x\n", s32Ret);
+        return s32Ret;
+    }
+    pCropRect->s32X =  stVpssCropInfo.stCropRect.s32X;
+    pCropRect->s32Y = stVpssCropInfo.stCropRect.s32Y ;
+    pCropRect->u32Width = stVpssCropInfo.stCropRect.u32Width;
+    pCropRect->u32Height = stVpssCropInfo.stCropRect.u32Height;		
+	SAMPLE_PRT("GET -----  Crop: X=%d   Y =%d   width: %d   height:%d  \n",pCropRect->s32X,
+					pCropRect->s32Y,pCropRect->u32Width,pCropRect->u32Height);
+	return s32Ret;
+
+}
+
 
 
 /*主进程例程*/
@@ -149,9 +179,10 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 	VPSS_GRP_ATTR_S 	stGrpVpssAttr = {0};
 	VPSS_CHN_ATTR_S 	stChnAttr = 	{0};
 	VPSS_GRP			VpssGrp =  0;	 
-	VPSS_CHN			VpssChn =  1;
-	VPSS_CHN			VpssChn2 = 2;
-	VPSS_CHN			VpssChn3 = 3;
+	VPSS_CHN			VpssChn =  VPSS_4K_CHN;  
+	VPSS_CHN			VpssChn2 = VPSS_CROP_EXTCHN;
+	VPSS_CHN			VpssBindChn =  VPSS_CROP_CHN;
+	VPSS_CHN			VpssChn3 = VPSS_TRACK_CHN;
 	VENC_CHN			VencChn = 0;
 	VPSS_CHN_MODE_S 	stVpssMode = {0};
 	VB_CONF_S			stVbConf;
@@ -248,14 +279,11 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 		goto END_1080P_3;
 	}
 
-	/*通道2 -----------裁剪1080P*/
-	RECT_S crop_rect = {200,200,HI_CROP_WIDTH,HI_CROP_HEIGHT};
-	RH_MPI_VPSS_SetChnCrop(VpssChn2,&crop_rect);
-	
+	/*物理通道2 -----------裁剪*/
 	memset(&stChnAttr, 0, sizeof(stChnAttr));
 	stChnAttr.s32SrcFrameRate = 30;
 	stChnAttr.s32DstFrameRate = 30;
-	s32Ret = HI_MPI_VPSS_SetChnAttr(VpssGrp, VpssChn2, &stChnAttr); 	
+	s32Ret = HI_MPI_VPSS_SetChnAttr(VpssGrp, 2, &stChnAttr); 	
 	if (s32Ret != HI_SUCCESS)	 {
 		SAMPLE_PRT("HI_MPI_VPSS_SetChnAttr failed with %#x!\n", s32Ret);
 		goto END_1080P_3;
@@ -266,12 +294,30 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 	stVpssMode.u32Width 	  = stSize.u32Width;			   
 	stVpssMode.u32Height	  = stSize.u32Height;			  
 	stVpssMode.enCompressMode = COMPRESS_MODE_NONE;
-	s32Ret =  HI_MPI_VPSS_SetChnMode(VpssGrp, VpssChn2, &stVpssMode);
+	s32Ret =  HI_MPI_VPSS_SetChnMode(VpssGrp, VpssBindChn, &stVpssMode);
 	if (s32Ret != HI_SUCCESS)	 {
 		SAMPLE_PRT("HI_MPI_VPSS_SetChnMode failed with %#x!\n", s32Ret);
 		goto END_1080P_3;
 	}
+	s32Ret =  HI_MPI_VPSS_EnableChn(VpssGrp, VpssBindChn);
+	if (s32Ret != HI_SUCCESS)	 {
+		SAMPLE_PRT("HI_MPI_VPSS_EnableChn failed with %#x!\n", s32Ret);
+		goto END_1080P_3;
+	}	
 
+	/*物理通道绑定的扩展通道*/
+	VPSS_EXT_CHN_ATTR_S ExtChnAttr;	
+	ExtChnAttr.enCompressMode = COMPRESS_MODE_NONE;
+	ExtChnAttr.enPixelFormat = pixel_format;
+	ExtChnAttr.s32BindChn = VpssBindChn;
+	ExtChnAttr.s32SrcFrameRate = 30;
+	ExtChnAttr.s32DstFrameRate = 30;
+	ExtChnAttr.u32Height = HI_CROP_HEIGHT;
+	ExtChnAttr.u32Width = HI_CROP_WIDTH;	
+	s32Ret = HI_MPI_VPSS_SetExtChnAttr(VpssGrp,VpssChn2,&ExtChnAttr);
+
+	RECT_S crop_rect = {960,540,1920,1080};
+	RH_MPI_VPSS_SetChnCrop(VpssChn2,&crop_rect);	
 	s32Ret =  HI_MPI_VPSS_EnableChn(VpssGrp, VpssChn2);
 	if (s32Ret != HI_SUCCESS)	 {
 		SAMPLE_PRT("HI_MPI_VPSS_EnableChn failed with %#x!\n", s32Ret);
@@ -281,7 +327,7 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 	/*通道三 ，用于跟踪*/
 	memset(&stChnAttr, 0, sizeof(stChnAttr));
 	stChnAttr.s32SrcFrameRate = 30;
-	stChnAttr.s32DstFrameRate = 4;
+	stChnAttr.s32DstFrameRate = 15;
 	s32Ret = HI_MPI_VPSS_SetChnAttr(VpssGrp, VpssChn3, &stChnAttr); 	
 	if (s32Ret != HI_SUCCESS)
 	{
@@ -375,8 +421,11 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 	/*分析算法启动*/	
 	RH_Track_Algorithm_Start(VpssChn3);	
 	/*VISCA协议*/
+//	RECT_S crop_rect1 = {960,540,960,540};
+//	RH_MPI_VPSS_SetChnCrop(VpssChn2,&crop_rect1);
 	RH_UDP_Proto_Start();
-	
+	sleep(5);
+	TestViscaPTZ();	
 	getchar();
 	getchar();
 	
