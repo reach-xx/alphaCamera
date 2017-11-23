@@ -194,21 +194,26 @@ HI_VOID *RH_MPI_Alg_Analysis(VIDEO_FRAME_INFO_S *pFrmInfo, HI_U8 *pBuff, HI_U32 
 	rect_t rect = {0}; 
 	
 	pVirAddr = (HI_U8*) HI_MPI_SYS_Mmap(pFrmInfo->stVFrame.u32PhyAddr[0], u32Size);
-	memset(pBuff,0,bufferlen);
-	memcpy(pBuff,pVirAddr,bufferlen);
-	HI_MPI_SYS_Munmap((HI_VOID*)pVirAddr,u32Size);
-	
-	Is_Realcoordinate = Reach_Track_run(pBuff,&rect);
+
+	/*TODO：
+      pBuff 暂时未用，考虑到多一次拷贝，如果对后面跟踪有影响就修改回来
+      */
+//	memset(pBuff,0,bufferlen);
+//	memcpy(pBuff,pVirAddr,bufferlen);
+//	HI_MPI_SYS_Munmap((HI_VOID*)pVirAddr,u32Size);
+
+	Is_Realcoordinate = Reach_Track_run(pVirAddr,&rect);
 	if(Is_Realcoordinate == 1)
 	{
 		RH_CheckMoveWay(rect.min_x, rect.min_y);
-		SAMPLE_PRT("------------------------------------------:X: %d  Y: %d \n",rect.min_x,rect.min_y);
+		SAMPLE_PRT("Trigger------------------------------------------:X: %d  Y: %d \n",rect.min_x,rect.min_y);
 	}
 	else
 	{
 		//SAMPLE_PRT("!!!!!!!!!!!!!!!!!!!!!!!!!Send720PDataFunc  Is_Realcoordinate:%d ,overall view!!!!!!!!!!!!!!!!!!!!!!!!!\n", Is_Realcoordinate);
 	}
-	
+
+	HI_MPI_SYS_Munmap((HI_VOID*)pVirAddr,u32Size);	
 	return ;
 }
 

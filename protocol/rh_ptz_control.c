@@ -94,16 +94,95 @@ HI_VOID* RH_CheckMoveWay(int x,int y)
 	}	
 }
 
+#if 0
+static HI_VOID* MoveVISCAFunc(HI_VOID* p)
+{
+	stVpssCropInfo.bEnable = HI_TRUE;
+	stVpssCropInfo.enCropCoordinate = VPSS_CROP_ABS_COOR;
+	RECT_S rDst,rCur,rOut;
+	rCur.u32Width = new_width;
+	rCur.u32Height = new_height;
+	rDst.u32Width = new_width;
+	rDst.u32Height = new_height;
+	rOut.u32Width = new_width;
+	rOut.u32Height = new_height;
+	
+	command1 = VISCA_STOP;
+	rCur.s32X = start_X;
+	rCur.s32Y = start_Y;
+	while(1)
+	{	
+		if(Is_exit)
+		{
+			break;
+		}
+	
+		stVpssCropInfo.stCropRect.u32Width  = new_width;
+	    stVpssCropInfo.stCropRect.u32Height = new_height;
+		unsigned i = 0;
+		
+		if(command1 == VISCA_EXIT)
+		{
+			exit_encoder();
+		}
 
-/*自动云台模式*/
+		else if(command1 != VISCA_STOP)
+		{
+			for(;;)
+			{
+				usleep(5000);
+				rDst.s32X = end_X;
+				rDst.s32Y = end_Y;
+				GetNextRect(&rCur, &rDst, &rOut);
+				rOut.s32Y = end_Y;
+				rCur = rOut;
+				//printf("MoveVISCAFunc  rCur:(%d,%d),  rDst:(%d, %d) ,rOut:(%d, %d)!!!! \n\n", rCur.s32X, rCur.s32Y, rDst.s32X, rDst.s32Y, rOut.s32X, rOut.s32Y);
+				stVpssCropInfo.stCropRect.s32X = rOut.s32X;
+		    	stVpssCropInfo.stCropRect.s32Y = rOut.s32Y;
+				Set_grp();
+			}
+		}
+	
+		usleep(40 * 1000);	
+	}
+
+	printf("MoveVISCAFunc thread finished job !!!! \n\n");
+
+	return 0;
+}
+
+#endif
+
+/*自动云台模式 ---- 自动模式*/
 HI_S32 RH_AUTOCoordCalc(RH_Coord *pCoord)
 {
 	HI_S32 s32Ret = HI_SUCCESS;	
+	RECT_S rDst,rCur,rOut;
+	
+	rCur.u32Width = OUTPUT_WIDTH;
+	rCur.u32Height = OUTPUT_HEIGHT;
+	rDst.u32Width = OUTPUT_WIDTH;
+	rDst.u32Height = OUTPUT_HEIGHT;
+	rOut.u32Width = OUTPUT_WIDTH;
+	rOut.u32Height = OUTPUT_HEIGHT;	
 
-
+	rCur.s32X = pCoord->rect.s32X;
+	rCur.s32Y = pCoord->rect.s32Y;	
+	pCoord->rect.u32Width = OUTPUT_WIDTH;
+	pCoord->rect.u32Height = OUTPUT_HEIGHT;
+	
+	rDst.s32X = pCoord->end_rect.s32X;
+	rDst.s32Y = pCoord->end_rect.s32Y;
+	GetNextRect(&rCur, &rDst, &rOut);
+	rOut.s32Y = pCoord->end_rect.s32Y;
+	rCur = rOut;
+	pCoord->rect.s32Y =  pCoord->end_rect.s32Y;
+	pCoord->rect.s32X =  rOut.s32X;	
+	printf("MoveVISCAFunc  rCur:(%d,%d),	rDst:(%d, %d) ,rOut:(%d, %d)!!!! \n\n", rCur.s32X, rCur.s32Y, rDst.s32X, rDst.s32Y, rOut.s32X, rOut.s32Y);
 	
 	return s32Ret;
 }
+
 
 
 /*函数计算坐标  ---- 手动模式*/
@@ -317,6 +396,10 @@ HI_S32 RH_PTZ_Contrl_Start(HI_VOID)
 {
 	HI_S32 s32Ret = HI_SUCCESS;
 	int i = 0;
+
+	/*TEST 修改为自动模式测试用*/
+	gs_Coord.bAuto = HI_TRUE;
+	
 	s32Ret = pthread_create(&gs_PTZPid, 0, RH_PTZControl, (HI_VOID*)NULL);
 	return s32Ret;
 }
