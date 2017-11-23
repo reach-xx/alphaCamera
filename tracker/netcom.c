@@ -3874,7 +3874,6 @@ void SendAudioToClient(int nLen, unsigned char *pData,
 				if(nRet < 0) {
 					SETCLIUSED(index, cnt, FALSE);
 					SETCLILOGIN(index, cnt, FALSE);
-					SETLOWSTREAM(DSP1, cnt, FALSE);
 					//SETFARCTRLLOCK(index, cnt, 0);
 					writeWatchDog();
 					fprintf(stderr, "Audio Send error index:%d, cnt:%d %d nSendLen:%d  ,nRet:%d\n", index, cnt, errno, nSendLen, nRet);

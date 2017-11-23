@@ -4,7 +4,7 @@
 #include <netinet/in.h>
 #include "common.h"
 
-#define DSP_NUM        	4
+#define DSP_NUM        	10
 
 #ifndef SDCARD
 //#define BOX_VER					"V2.5.3"//ENC110°æ±¾
@@ -30,6 +30,8 @@
 #define TXTOSDFILE				"txtosd.dat"
 #define OSDTRANSFILE			"osdtrans.ini"
 #define DSP1			0
+#define DSP2			1
+
 
 #define TRUE		1
 #define FALSE		0
@@ -48,7 +50,7 @@
 #define INITHEIGHT		480
 
 #define PORT_LISTEN_DSP1		3100
-//#define PORT_LISTEN_DSP2		3110
+#define PORT_LISTEN_DSP2		3200
 //#define PORT_LISTEN_DSP3		3120
 //#define PORT_LISTEN_DSP4		3130
 #define PORT_LISTEN_MULTICAST   4000
@@ -256,8 +258,6 @@
 #define	TST(bit)	(A(bit) & B(bit))
 
 
-#define SETLOWSTREAM(dsp,cli,val)			(gDSPCliPara[dsp].cliDATA[cli].LowStream = val)
-#define GETLOWSTREAM(dsp,cli)			(gDSPCliPara[dsp].cliDATA[cli].LowStream)
 /*if use client*/
 #define ISUSED(dsp,cli)				(gDSPCliPara[dsp].cliDATA[cli].bUsed == TRUE)
 
