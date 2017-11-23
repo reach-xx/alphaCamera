@@ -161,8 +161,8 @@ HI_S32 RH_MPI_VPSS_GetChnCrop(VPSS_CHN VpssChn , RECT_S *pCropRect)
     pCropRect->s32Y = stVpssCropInfo.stCropRect.s32Y ;
     pCropRect->u32Width = stVpssCropInfo.stCropRect.u32Width;
     pCropRect->u32Height = stVpssCropInfo.stCropRect.u32Height;		
-	SAMPLE_PRT("GET -----  Crop: X=%d   Y =%d   width: %d   height:%d  \n",pCropRect->s32X,
-					pCropRect->s32Y,pCropRect->u32Width,pCropRect->u32Height);
+//	SAMPLE_PRT("GET -----  Crop: X=%d   Y =%d   width: %d   height:%d  \n",pCropRect->s32X,
+//					pCropRect->s32Y,pCropRect->u32Width,pCropRect->u32Height);
 	return s32Ret;
 
 }
@@ -329,7 +329,7 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 	/*通道三 ，用于跟踪*/
 	memset(&stChnAttr, 0, sizeof(stChnAttr));
 	stChnAttr.s32SrcFrameRate = 30;
-	stChnAttr.s32DstFrameRate = 30;
+	stChnAttr.s32DstFrameRate = 15;
 	s32Ret = HI_MPI_VPSS_SetChnAttr(VpssGrp, VpssChn3, &stChnAttr); 	
 	if (s32Ret != HI_SUCCESS)
 	{
