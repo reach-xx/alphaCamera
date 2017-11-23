@@ -68,11 +68,13 @@ typedef struct __RH_PROCOTOL_H__
 /* ---- ------ ----- ----- ----- ----- ----- ----- ----- ----- ----- -----*/
 typedef struct __RH_COORD_
 {
+	HI_BOOL  bAuto;      /*手动模式--FALSE      自动模式—-TRUE*/
 	HI_BOOL  bEnable;    /*启动*/
 	int      cmd_mode;   //命令的类型  上下左右等
 	int 	 vSpeed;     //V速度
 	int      wSpeed;     //W速度	
-	RECT_S   rect;       //计算实时坐标
+	RECT_S   rect;       //计算当前实时坐标
+	RECT_S   end_rect;   //自动模式下，移动结束位置
 }RH_Coord;
 
 #endif   //__RH_PROCOTOL_H

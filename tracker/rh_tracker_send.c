@@ -36,7 +36,10 @@ extern "C" {
 
 //#include "sample_comm.h"
 #include "rh_interface.h"
-#include "rh_encoder_send.h"
+#include "rh_tracker_send.h"
+#include "auto_track.h"
+
+#define DATA_MAX_LEN	(8192)
 
 static pthread_t gs_VencPid;
 static SAMPLE_VENC_GETSTREAM_PARA_S gs_stPara;
@@ -50,6 +53,8 @@ static unsigned long g_video_time = 0;
 /*send data packet*/
 static unsigned char gszSendBuf[MAX_PACKET];
 
+
+extern int track_students_right_side_param_ex(unsigned char *data, int socket);
 
 
 /*Initial client infomation*/
@@ -143,6 +148,23 @@ static void InitStandardParam(SYSPARAMS *std)
 	bzero(std->nTemp, sizeof(std->nTemp));
 }
 
+static void InitStandardParam1(SysParamsV2 *std)
+{
+	std->dwAddr = 	inet_addr("192.168.4.88");
+	std->dwGateWay =  inet_addr("192.168.4.254");
+	std->dwNetMark = inet_addr("255.255.255.0");
+
+	std->szMacAddr[0] = 0x00;
+	std->szMacAddr[1] = 0x09;
+	std->szMacAddr[2] = 0x30;
+	std->szMacAddr[3] = 0x28;
+	std->szMacAddr[4] = 0x12;
+	std->szMacAddr[5] = 0x22;
+	strcpy(std->strName, "DSS-ENC-MOD");
+	strcpy(std->strVer, "6.4.8");
+	std->bType = ENCODE_TYPE;  //0 -------VGABOX  3-------200 4-------110 5-------120 6--------1200	8 --ENC-1100
+}
+
 				   
 /*set send timeout*/
 int SetSendTimeOut(HI_S32 sSocket, unsigned long time)
@@ -186,10 +208,98 @@ int mid_recv(HI_S32 s, char *buff, int len, int flags)
 }
 
 
+/*��������*/
+int DoUpdateProgram(int sSocket, char *data, int len)
+{
+	unsigned long filesize;
+	unsigned char *p;
+	int nLen;
+	unsigned char temp[20];
+	int ret;
+	FILE *fp = NULL;
+	p = NULL;
+	p = malloc(8 * 1024);
+
+	SAMPLE_PRT("The File Updata Buffer Is 8KB!\n");
+
+	if(!p) {
+		SAMPLE_PRT("Malloc 8KB Buffer Failed!\n");
+	} else {
+		SAMPLE_PRT("The Buffer Addr 0x%x\n", (unsigned int)p);
+	}
+
+	if((fp = fopen("/update.tgz", "w+")) == NULL) {
+		SAMPLE_PRT("open %s error \n", "update.tgz");
+		return -1;
+	}
+
+	SAMPLE_PRT("szData:%x, %x, %x, %x, %x, %x,%x\n", data[0], data[1], data[2],
+	      data[HEAD_LEN], data[HEAD_LEN + 1], data[HEAD_LEN + 2], data[HEAD_LEN + 3]);
+	filesize = ((unsigned char)data[HEAD_LEN]) | ((unsigned char)data[HEAD_LEN + 1]) << 8 |
+	           ((unsigned char)data[HEAD_LEN + 2]) << 16 | ((unsigned char)data[HEAD_LEN + 3]) << 24;
+	SAMPLE_PRT("Updata file size = 0x%x! \n", (unsigned int)filesize);
+
+	while(filesize) {
+		nLen = recv(sSocket, p, 8 * 1024, 0);
+
+		if(nLen < 1) {
+			return nLen;
+		}
+
+		SAMPLE_PRT("recv Updata File 0x%x Bytes!\n", nLen);
+		ret = fwrite(p, 1, nLen, fp);
+
+		if(ret < 0) {
+			SAMPLE_PRT("product update faile!\n");
+			free(p);
+			fclose(fp);
+			p = NULL;
+			WriteData(sSocket, temp, HEAD_LEN);
+			return -1;
+		}
+
+		SAMPLE_PRT("write data ...........................:0x%x\n", (unsigned int)filesize);
+		filesize = filesize - nLen;
+	}
+
+	SAMPLE_PRT("recv finish......................\n");
+	free(p);
+	fclose(fp);
+	system("rm -rf /opt/update");
+	system("mkdir -p /opt/update");
+	//SET_FPGA_UPDATE(FPGA_UPDATE);
+	sleep(1);
+	p = NULL;
+	system("./update.sh");
+	//system("tar zxvf /update.tgz");
+	SAMPLE_PRT("update succeed !! \n");
+	/*�����ں�*/
+	//ret = updatekernel();
+	ret = 0;
+	if(ret == 0) {
+		temp[0] = 0;
+		temp[1] = 3;
+		temp[2] = MSG_UpdataFile_SUCC;
+	} else {
+		temp[0] = 0;
+		temp[1] = 3;
+		temp[2] = MSG_UpdataFile_FAILS;
+	}
+
+	WriteData(sSocket, temp, HEAD_LEN);
+	system("sync");
+	sleep(1);
+	/*����*/
+	system("reboot -f");
+	return 1;
+}
+
+
+
 /*PORT_ONE TCP communication message*/
 void OneTcpComMsg(void *pParams)
 {
-   char szData[256] = {0}, szPass[] = "123";
+   char szData[DATA_MAX_LEN] = {0}, szPass[] = "reach123";
    int nLen;
    HI_S32 sSocket;
    int nPos;
@@ -198,6 +308,7 @@ void OneTcpComMsg(void *pParams)
    int *pnPos = (int *)pParams;
    SAMPLE_PRT( "enter OneTcpComMsg() function!!\n");
    nPos = *pnPos;
+   char track_param[DATA_MAX_LEN] = {0};
 
    free(pParams);  //free memory
    pParams = NULL;
@@ -207,13 +318,43 @@ void OneTcpComMsg(void *pParams)
    SetSendTimeOut(sSocket, 3);
    /*set recv time out*/
 
-   bzero(szData, 256);
+   bzero(szData, DATA_MAX_LEN);
    phead = &header;
    memset(&header, 0, sizeof(MSGHEAD));
    sem_post(&s_sem_con_lock);
    SAMPLE_PRT( "OneTcpComMsg()	   sem_post!!!!\n");
-
+	int nMsgLen = 0;
    while(HI_TRUE == gs_stPara.bThreadStart) {
+		memset(szData, 0, sizeof(szData));
+
+		if(sSocket <= 0) {
+			SAMPLE_PRT( "sSocket<0 !\n");
+			goto ExitClientMsg;
+		}
+
+		nLen = recv(sSocket, szData, 2, 0);
+
+		if(nLen < 2 || nLen == -1) {
+			SAMPLE_PRT( "nLen<2 !\n");
+			goto ExitClientMsg;
+		}
+
+		nMsgLen = ntohs(*((short *)szData));
+		nLen = mid_recv(sSocket,szData + 2,nMsgLen - 2, 0);
+		SAMPLE_PRT( "recv nLen = %d\n", nLen);
+		SAMPLE_PRT( "nMsgLen = %d,szData[2]=0x%x!\n", nMsgLen, szData[2]);
+		SAMPLE_PRT( "szData[3-6]=0x%x,0x%x,0x%x,0x%x!\n", szData[3], szData[4],szData[5],szData[6]);
+		SAMPLE_PRT( "szData[7-10]=0x%x,0x%x,0x%x,0x%x!\n", szData[7], szData[8],szData[9],szData[10]);
+
+
+		SAMPLE_PRT( "szData:%s, szPass:%s\n", szData, szPass);
+		
+		if(nLen < nMsgLen - 2) {
+			SAMPLE_PRT( "nLen < nMsgLen -2\n");
+			goto ExitClientMsg;
+		}
+
+#if 0
 	   memset(szData, 0, sizeof(szData));
 
 	   if(sSocket <= 0) {
@@ -245,8 +386,9 @@ void OneTcpComMsg(void *pParams)
 			   goto ExitClientMsg;
 		   }
 	   }
-
 	   switch(phead->nMsg) {
+#endif
+	   switch(szData[2]){
 		   case MSG_GET_AUDIOPARAM:
 			   SAMPLE_PRT( "PORT_ONE Get AudioParam \n");
 			   break;
@@ -272,13 +414,14 @@ void OneTcpComMsg(void *pParams)
 
 		   case MSG_FARCTRL:
 			   SAMPLE_PRT( "PORT_ONE Far Control\n");
+			   //FarCtrlCamera(PORT_ONE, (unsigned char *)&szData[HEAD_LEN], phead->nLen - HEAD_LEN);
 			   break;
 
 		   case MSG_SET_SYSTIME: 
 				break;
 
 		   case MSG_PASSWORD: {
-		   		SYSPARAMS sysPara;
+		   		//SYSPARAMS sysPara;
 			   if(!(strcmp("sawyer", szData + HEAD_LEN))) {
 				   SETLOGINTYPE(0, nPos, LOGIN_ADMIN);
 			   } else if(szData[HEAD_LEN] == 'A' && !strcmp(szPass, szData + HEAD_LEN + 1)) {
@@ -295,9 +438,47 @@ void OneTcpComMsg(void *pParams)
 				   goto ExitClientMsg;	 //
 			   }
 
-			   PackHeaderMSG((HI_U8 *)szData, MSG_CONNECTSUCC, HEAD_LEN);
-			   send(sSocket, szData, HEAD_LEN, 0);
+			   //PackHeaderMSG((HI_U8 *)szData, MSG_CONNECTSUCC, HEAD_LEN);
+			    szData[0] = 0;
+				szData[1] = 3;
+				szData[2] = MSG_CONNECTSUCC;
+			   send(sSocket, szData, 3, 0);
 			   SAMPLE_PRT( "send MSG_CONNECTSUCC");
+
+			   SysParamsV2 sysPara;
+			   InitStandardParam1(&sysPara);
+				RecDataInfo theDataInfo;
+			   theDataInfo.nColors = 16;
+				theDataInfo.nDataCodec = 0x1001;//JPEG?a 0x1001
+				theDataInfo.nHight = 1280;
+				theDataInfo.nWidth = 720;
+				theDataInfo.nFrameRate = 30;
+				strcpy(theDataInfo.Version, "VGABOX");
+				memcpy(szData + 3, &theDataInfo, sizeof(theDataInfo));
+				szData[0] = 0;
+				szData[1] = (char)(3 + sizeof(theDataInfo));
+				szData[2] = MSG_DATAINFO;
+				send(sSocket, szData, 3 + sizeof(theDataInfo), 0);
+				szData[0] = 0;
+				szData[1] = (char)(3 + sizeof(sysPara));
+				szData[2] = MSG_SYSPARAMS;
+				memcpy(szData + 3, &sysPara, sizeof(sysPara));
+				send(sSocket, szData, 3 + sizeof(sysPara), 0);
+
+				DeviceInfo deviceInfo;
+				deviceInfo.iHardwarePlat = HARDWARE_PLAT_HISI_3519;
+				deviceInfo.iRoleType = ROLE_TEACHER;
+				deviceInfo.iSolutionType = 1;
+				snprintf(deviceInfo.aVersion, MAX_VERSION_LEN, VERSION_INFO);
+				
+				szData[0] = 0;
+				szData[1] = (char)(3 + sizeof(deviceInfo));
+				szData[2] = MSG_DEVICE_INFO;
+				memcpy(szData + 3, &deviceInfo, sizeof(deviceInfo));
+				send(sSocket, szData, 3 + sizeof(deviceInfo), 0);
+
+			   
+			   #if 0
 			   InitStandardParam(&sysPara);
 			   /*length*/
 			   length = HEAD_LEN + sizeof(sysPara);
@@ -306,6 +487,7 @@ void OneTcpComMsg(void *pParams)
 			   memcpy(szData + HEAD_LEN, &sysPara, sizeof(sysPara));
 			   send(sSocket, szData, length, 0);
 			   SAMPLE_PRT( "user log!  DSP:%d  client:%d \n", PORT_ONE, nPos);
+			   #endif
 			   /*set client login succeed*/
 			   SETCLIUSED(PORT_ONE, nPos, HI_TRUE);
 			   SETCLILOGIN(PORT_ONE, nPos, HI_TRUE);
@@ -337,10 +519,6 @@ void OneTcpComMsg(void *pParams)
 				SAMPLE_PRT( "Restart sys\n");
 				system("reboot -f");
 				break;
-
-			case MSG_UpdataFile: 
-				break;
-
 		   case MSG_UPDATEFILE_ROOT:
 			   SAMPLE_PRT( "Updata Root file\n");
 			   break;
@@ -376,6 +554,24 @@ void OneTcpComMsg(void *pParams)
 
 		   case MSG_SET_LOGOINFO:
 		   		break;
+
+			case MSG_SET_TRACK_PARAM:
+				//track_students_right_side_param(&szData[HEAD_LEN],sSocket);
+				memcpy(&track_param,&szData[HEAD_LEN], nMsgLen - HEAD_LEN);
+				track_students_right_side_param(track_param,(int)sSocket);
+				SAMPLE_PRT( "track_students_right_side_param!\n");
+				break;
+
+			case MSG_UpdataFile: { //��������
+				int ret = 0;
+				ret = DoUpdateProgram(sSocket, szData, nMsgLen);
+
+				if(ret <= 1) {
+					goto ExitClientMsg;
+				}
+			}
+			break;
+
 
 		   default:
 		   		SAMPLE_PRT( "Error Command  End!\n");
@@ -417,7 +613,7 @@ ExitClientMsg:
 
 
 /*EncodeManage Send   TCP task mode*/
-HI_U32 TCPServerTask(void *pParam)
+HI_U32 TCPServerTask1200(void *pParam)
 {
 
 	HI_S32 sClientSocket;
@@ -781,8 +977,8 @@ HI_U32 RH_MPI_VENC_SendData( VENC_STREAM_S* pstStream)
 
     for (i = 0; i < pstStream->u32PackCount; i++)
     {
-    	SendDataToClient(pstStream->pstPack[i].u32Len - pstStream->pstPack[i].u32Offset, 
-			pstStream->pstPack[i].pu8Addr + pstStream->pstPack[i].u32Offset,1, 0,1920, 1080);
+    	//SendDataToClient(pstStream->pstPack[i].u32Len - pstStream->pstPack[i].u32Offset, pstStream->pstPack[i].pu8Addr + pstStream->pstPack[i].u32Offset,1, 0,1280, 720);
+		SendDataToClient110(pstStream->pstPack[i].u32Len - pstStream->pstPack[i].u32Offset, pstStream->pstPack[i].pu8Addr + pstStream->pstPack[i].u32Offset,1, 0,1280, 720);
     }
 	
 	return s32Ret;
@@ -818,7 +1014,7 @@ HI_VOID* RH_MPI_VENC_GetVencStreamProc(HI_VOID* p)
         SAMPLE_PRT("input count invaild\n");
         return NULL;
     }
-
+    signal(SIGPIPE, SIG_IGN);
     for (i = 0; i < s32ChnTotal; i++)
     {
         /* decide the stream file name, and open file to save stream */
@@ -923,9 +1119,8 @@ HI_VOID* RH_MPI_VENC_GetVencStreamProc(HI_VOID* p)
                     }
                     /*******************************************************
                      step 2.5 : send frame to EncoderManage
-                    *******************************************************/
-                    if(i == 2)  //
-                    {
+                    *******************************************************/	
+                    if(i == 2) {
 						s32Ret = RH_MPI_VENC_SendData(&stStream);
 	                    if (HI_SUCCESS != s32Ret)
 	                    {
@@ -933,9 +1128,8 @@ HI_VOID* RH_MPI_VENC_GetVencStreamProc(HI_VOID* p)
 	                        stStream.pstPack = NULL;
 	                        SAMPLE_PRT("send stream failed!\n");
 	                        break;
-	                    }
+	                    }					
                     }
-				
                     /*******************************************************
                      step 2.6 : release stream
                     *******************************************************/
@@ -968,10 +1162,11 @@ HI_S32 RH_MPI_VENC_StartGetStream(HI_S32 s32Cnt)
     gs_stPara.s32Cnt = s32Cnt;
 	HI_U32 result;
 	
-	result = pthread_create(&s_TcpServerPid, NULL, (void *)TCPServerTask, (void *)NULL);
+	result = pthread_create(&s_TcpServerPid, NULL, (void *)TCPServerTask1200, (void *)NULL);
 	if(result < 0) {
 		SAMPLE_PRT( "create TCPServerTask() failed\n");
 	}
+
 	result = pthread_create(&gs_VencPid, 0, RH_MPI_VENC_GetVencStreamProc, (HI_VOID*)&gs_stPara);
     return result;
 }
@@ -992,6 +1187,225 @@ HI_S32 RH_MPI_VENC_StopGetStream()
     }
     return HI_SUCCESS;
 }
+
+
+//**/
+
+#define MAX_STREAM_NUM 16
+int ClientType[MAX_STREAM_NUM]  = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}; 
+
+
+
+#define HEAD_LEN110	3
+/*send encode data to every client*/
+void SendDataToClient110(int nLen, unsigned char *pData,
+                         int nFlag, unsigned char index , int width, int height)
+{
+	int nRet, nSent, nSendLen, nPacketCount, nMaxDataLen;
+	DataHeader  DataFrame;
+	int cnt = 0;
+	SOCKET  sendsocket = 0;
+
+	////pthread_mutex_lock(&g_send_m);
+	
+	bzero(&DataFrame, sizeof(DataHeader));
+	//	static uint32_t time = 0;
+	//	static uint32_t test = 0;
+	nSent = 0;
+	nSendLen = 0;
+	nPacketCount = 0;
+	nMaxDataLen = MAX_PACKET - sizeof(DataHeader) - HEAD_LEN110;
+	DataFrame.id = 0x1001;
+
+	DataFrame.dwCompressedDataLength = nLen;
+
+	DataFrame.biBitCount = 24;  				//ÑÕÉ«Êý
+
+	DataFrame.biWidth = width;		//ÊÓÆµ¿í
+	DataFrame.biHeight = height; 	//ÊÓÆµ¸ß
+
+	if(nFlag == 1)	{	//if I frame
+		DataFrame.dwFlags = AVIIF_KEYFRAME;
+	} else {
+		DataFrame.dwFlags = 0;
+	}
+
+	DataFrame.fccCompressedHandler = 0x34363248;//0x30484352; H264
+	DataFrame.fccHandler = 0x34363248;//0x30484352;  H264
+
+
+	//char *sendbuf = r_malloc(MAX_PACKET);
+
+	while(nSent < nLen) {
+		if(nLen - nSent > nMaxDataLen) {
+			nSendLen = nMaxDataLen;
+
+			if(nPacketCount == 0) {
+				DataFrame.dwSegment = 2;    //start frame
+			} else {
+				DataFrame.dwSegment = 0;    //middle frame
+			}
+
+			nPacketCount++;
+		} else {
+			nSendLen = nLen - nSent;
+
+			if(nPacketCount == 0) {
+				DataFrame.dwSegment = 3;    //first frame and last frame
+			} else {
+				DataFrame.dwSegment = 1;    //last frame
+			}
+
+			nPacketCount++;
+		}
+
+		DataFrame.dwPacketNumber = gnSentCount++;
+		memcpy(gszSendBuf + HEAD_LEN110, &DataFrame, sizeof(DataHeader));
+		memcpy(gszSendBuf + sizeof(DataHeader) + HEAD_LEN110, pData + nSent, nSendLen);
+		gszSendBuf[0] = (nSendLen + sizeof(DataHeader) + HEAD_LEN110) >> 8;
+		gszSendBuf[1] = (nSendLen + sizeof(DataHeader) + HEAD_LEN110) & 0xff;
+		gszSendBuf[2] = MSG_SCREENDATA;
+
+
+		//send multi client
+		for(cnt = 0; cnt < MAX_CLIENT; cnt++) {
+			if(ISUSED(0, cnt) && ISLOGIN(0, cnt)) {
+				sendsocket = GETSOCK(0, cnt);
+
+				int sendflag = 1;
+
+/*
+				if(index == ClientType[cnt])
+				{
+					sendflag = 1;
+				}
+*/
+#if 0
+				//ÀÏÊ¦½ü¾°
+				if((index == 0) && (ClientType[cnt] == 0)) {
+					sendflag = 1;
+				}
+				//Ñ§Éú½ü¾°
+				else if((index == 1) && (ClientType[cnt] == 1)) {
+					sendflag = 1;
+				}
+				//ÀÏÊ¦È«¾°
+				else if((index == 2) && (ClientType[cnt] == 2)) {
+
+					sendflag = 1;
+				}
+				//Ñ§ÉúÈ«¾°
+				else if((index == 3) && (ClientType[cnt] == 3)) {
+					sendflag = 1;
+				}
+
+				//°åÊé1
+				else if((index == 4) && (ClientType[cnt] == 4)) {
+					sendflag = 1;
+
+				}
+				//°åÊé2
+				else if((index == 5) && (ClientType[cnt] == 5)) {
+					sendflag = 1;
+
+				}
+				//VGA
+				else if((index == 6) && (ClientType[cnt] == 6)) {
+					sendflag = 1;
+
+				}
+				//Ô¤Áô1
+				else if((index == 7) && (ClientType[cnt] == 7)) {
+					sendflag = 1;
+
+				}
+				//Ô¤Áô2
+				else if((index == 8) && (ClientType[cnt] == 8)) {
+					sendflag = 1;
+
+				}
+				//µçÓ°¸ß1
+				else if((index == 9) && (ClientType[cnt] == 9)) {
+					sendflag = 1;
+
+				}
+				//µçÓ°¸ß2
+				else if((index == 10) && (ClientType[cnt] == 10)) {
+					sendflag = 1;
+
+				}
+				//µçÓ°µÍ1
+				else if((index == 11) && (ClientType[cnt] == 11)) {
+					sendflag = 1;
+
+				}
+				//µçÓ°µÍ2
+				else if((index == 12) && (ClientType[cnt] == 12)) {
+					sendflag = 1;
+
+				}
+				//Ô¶¶Ë
+				else if((index == 13) && (ClientType[cnt] == 13)) {
+					sendflag = 1;
+
+				}
+				//tde
+				else if((index == 15) && (ClientType[cnt] == 15)) {
+					sendflag = 1;
+
+				}
+
+#endif
+
+				if (sendflag == 1) {
+					//printf("index = %d, ClientType[%d] = %d\n", index, cnt, ClientType[cnt]);
+				}
+
+				if((sendsocket > 0) && (sendflag == 1))  {
+
+#if 0
+
+					if((index == 0) && (flag[cnt] == 0) && (ClientType[cnt] == 0)) {
+
+						test++;
+
+						if(getostime() - time > 1000) {
+							printf("time is @%d socket = %d cnt =%d\n", getostime() - time, sendsocket, cnt);
+							time = getostime();
+						}
+					}
+
+#endif
+
+
+					nRet = WriteData(sendsocket, gszSendBuf, nSendLen + sizeof(DataHeader) + HEAD_LEN110);
+
+					if(nRet < 0) {
+						SETCLIUSED(0, cnt, FALSE);
+						SETCLILOGIN(0, cnt, FALSE);
+
+						printf("Send to socket Error: SOCK = %d count = %d  errno = %d  ret = %d\n", sendsocket, cnt, errno, nRet);
+					}
+				}
+			}
+		}
+
+		nSent += nSendLen;
+	}
+
+#if 0
+
+	if(sendbuf) {
+		r_free(sendbuf);
+	}
+
+#endif
+	//pthread_mutex_unlock(&g_send_m);
+}
+
+
+
+
 
 #ifdef __cplusplus
 #if __cplusplus

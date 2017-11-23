@@ -28,8 +28,8 @@ extern "C" {
 #define HI_CROP_HEIGHT		1080
 
 /*跟踪分辨率*/
-#define HI_TRACK_WIDTH		640
-#define HI_TRACK_HEIGHT		360
+#define HI_TRACK_WIDTH		1280
+#define HI_TRACK_HEIGHT		720
 
 
 /******************************************************************************
@@ -384,7 +384,7 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 			case 2:
 				VencChn = 2;    //跟踪分析编码
 				curVpssChn = VpssChn3;
-				enSize 	   = PIC_360P;			
+				enSize 	   = PIC_HD720;			
 				break;
 			default:
 				SAMPLE_PRT("Venc failed!  EncChnNum=%d\n",i);
@@ -424,7 +424,10 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 	/*VISCA协议*/
 //	RECT_S crop_rect1 = {960,540,960,540};
 //	RH_MPI_VPSS_SetChnCrop(VpssChn2,&crop_rect1);
+	/*UDP Visca协议接收*/
 	RH_UDP_Proto_Start();
+	/*电子云台控制*/
+	RH_PTZ_Contrl_Start();
 	sleep(5);
 //	TestViscaPTZ();	
 	getchar();
