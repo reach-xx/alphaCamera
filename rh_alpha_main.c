@@ -17,6 +17,8 @@ extern "C" {
 #include <sys/ioctl.h>
 
 #include "sample_comm.h"
+#include "version.h"
+
 
 /*4K 缩放1080P   分辨率*/
 #define HI_ZOOM_WIDTH		1920
@@ -327,7 +329,7 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 	/*通道三 ，用于跟踪*/
 	memset(&stChnAttr, 0, sizeof(stChnAttr));
 	stChnAttr.s32SrcFrameRate = 30;
-	stChnAttr.s32DstFrameRate = 15;
+	stChnAttr.s32DstFrameRate = 30;
 	s32Ret = HI_MPI_VPSS_SetChnAttr(VpssGrp, VpssChn3, &stChnAttr); 	
 	if (s32Ret != HI_SUCCESS)
 	{
@@ -408,7 +410,6 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 	        goto END_1080P_6;
 	    }		
 	}
-
 	
 	/*启动编码接收数据*/
 	s32Ret = RH_MPI_VENC_StartGetStream(S32EncChnNum);
@@ -425,7 +426,7 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
 //	RH_MPI_VPSS_SetChnCrop(VpssChn2,&crop_rect1);
 	RH_UDP_Proto_Start();
 	sleep(5);
-	TestViscaPTZ();	
+//	TestViscaPTZ();	
 	getchar();
 	getchar();
 	
@@ -469,6 +470,8 @@ int main(int argc, char* argv[])
 
     signal(SIGINT, RH_MPI_CAM_HandleSig);
     signal(SIGTERM, RH_MPI_CAM_HandleSig);
+
+	SAMPLE_PRT("Alpha Product  Soft Version: %s\n", SOFT_VERSION);
 	
 	s32Ret = RH_AlphaCAM_Routine();
 	if (HI_SUCCESS == s32Ret)

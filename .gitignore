@@ -1,0 +1,6 @@
+gdb
+protocol/*.o
+rh_alpha_main
+*.o
+sender/*.o
+tracker/*.o

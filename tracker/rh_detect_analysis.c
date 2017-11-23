@@ -33,12 +33,18 @@ HI_VOID *RH_MPI_Alg_Analysis(VIDEO_FRAME_INFO_S *pFrmInfo)
 	pVirAddr = (HI_U8*) HI_MPI_SYS_Mmap(pFrmInfo->stVFrame.u32PhyAddr[0], u32Size);
 	usleep(200000);
 	//算法运行接口
-	Is_Realcoordinate = Reach_Track_run(pVirAddr,&rect);	
-	if(Is_Realcoordinate == 2)	{
+	Is_Realcoordinate = Reach_Track_run(pVirAddr,&rect);
+	if(Is_Realcoordinate == 1)  {
+		printf("current data !!!!!!!!!!!!  =============================:%d\n",Is_Realcoordinate);
+		SAMPLE_PRT("1------rect min_x=%d,min_y=%d,max_x=%d,max_y=%d\n",rect.min_x,rect.min_y,rect.max_x,rect.max_y);
+	}
+	/*
+ 	if(Is_Realcoordinate == 2)	{
 		SAMPLE_PRT("current data !!!!!!!!!!!! ");
 		SAMPLE_PRT("rect min_x=%d,min_y=%d,max_x=%d,max_y=%d\n",rect.min_x,rect.min_y,rect.max_x,rect.max_y);
 	}
-
+*/
+	printf("-----------------------------------------------------pVirAddr:0x%x  , %d\n",pVirAddr,u32Size);
 	HI_MPI_SYS_Munmap((HI_VOID*)pVirAddr,u32Size);
 	return ;
 }
@@ -63,7 +69,8 @@ HI_VOID* RH_MPI_YUV_Analysis(HI_VOID* pdata)
 		if (HI_SUCCESS != s32Ret)
 		{
 			SAMPLE_PRT("HI_MPI_VPSS_GetChnFrame fail,VpssChn(%d),Error(%#x)\n", VpssChn, s32Ret);
-			continue;
+			usleep(100*1000);
+			continue ;
 		}
 		/*Analysis of Algorithms */
 		RH_MPI_Alg_Analysis(&stFrameInfo);	
@@ -72,6 +79,7 @@ HI_VOID* RH_MPI_YUV_Analysis(HI_VOID* pdata)
 		if (HI_SUCCESS != s32Ret)
 		{
 			SAMPLE_PRT("HI_MPI_VPSS_ReleaseChnFrame fail,VpssChn(%d),Error(%#x)\n", VpssChn, s32Ret);
+			usleep(100*1000);
 			continue;
 		}
 	}

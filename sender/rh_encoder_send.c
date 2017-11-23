@@ -924,7 +924,7 @@ HI_VOID* RH_MPI_VENC_GetVencStreamProc(HI_VOID* p)
                     /*******************************************************
                      step 2.5 : send frame to EncoderManage
                     *******************************************************/
-                    if(i == 1)  //
+                    if(i == 0)  //
                     {
 						s32Ret = RH_MPI_VENC_SendData(&stStream);
 	                    if (HI_SUCCESS != s32Ret)

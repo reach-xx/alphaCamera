@@ -72,10 +72,10 @@ int Reach_Track_start()
 	
 	input = (uint8_t*)malloc(sizeof(uint8_t)* 640*360);
 	if (TRACK_STUDENTS_initObj(&handles, &Params) == -1) 
-		{
+	{
 		printf("student init error\n");
 		return -1;
-		}
+	}
 	
 	return 1;
 }
