@@ -16,6 +16,39 @@
 #include <libswresample/swresample.h>
 
 
+typedef unsigned short WORD ;
+typedef unsigned int   DWORD ;
+typedef unsigned char  BYTE;
+typedef int SOCKET;
+typedef int DSPFD;
+
+#define DSP_NUM        	10
+#define DSP1			0
+#define DSP2			1
+
+
+#define TRUE		1
+#define FALSE		0
+
+#define ADTS 					0x53544441
+#define AAC						0x43414130
+#define PCM						0x4d435030
+
+#define MIC_INPUT				1
+#define LINE_INPUT				0
+
+#define MAX_CLIENT				6
+#define MAX_PACKET				14600
+
+#define MAX_FAR_CTRL_NUM		5
+
+
+#define PORT_LISTEN_DSP2		3100
+#define PORT_LISTEN_DSP1		3200
+
+#define INVALID_SOCKET 			-1
+
+
 /* Thread error codes */
 #define THREAD_SUCCESS      (void *) 0
 #define THREAD_FAILURE      (void *) -1
@@ -101,12 +134,13 @@
 #define MSG_LOW_BITRATE             0x96        //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿?
 #define MSG_MUTE                    0x97        //ï¿½ï¿½ï¿½ï¿½ï¿?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿?ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½Ñ¯ï¿½ï¿½ï¿½ï¿½×´Ì¬ï¿½ï¿?
 #define MSG_PHOTO                   0x98        //ï¿½ï¿½ï¿½à¹¦ï¿½ï¿½
-#define MSG_LOCK_SCREEN    0x99//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä»
-#define MSG_GSCREEN_CHECK           0x9a   //ï¿½ï¿½ï¿½ï¿½Ð£ï¿½ï¿½ï¿½ï¿½ï¿½Þ²ï¿½ï¿½ï¿½
-#define MSG_SETVGAADJUST            43 //ï¿½ß¿ï¿½ï¿½ï¿½ï¿?ï¿½ï¿½Ï¢Í·+pic_revise
-#define MSG_CAMERACTRL_PROTOCOL     0x9b   //ï¿½ï¿½ï¿½ï¿½Í·ï¿½ï¿½ï¿½ï¿½Ð­ï¿½ï¿½ï¿½Þ¸ï¿½ ï¿½ï¿½Ï¢Í·ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Ö½Ú£ï¿?
+#define MSG_LOCK_SCREEN    0x99//
+#define MSG_GSCREEN_CHECK           0x9a   //
+#define MSG_SETVGAADJUST            43 //
+#define MSG_CAMERACTRL_PROTOCOL     0x9b   /
 #define MSG_TRACKAUTO				0x9f
 
+#define MSG_DEVICE_INFO				0xb1
 
 
 #define 	PORT_ONE 0
@@ -293,6 +327,52 @@ typedef struct
 	pthread_mutex_t lock;
 }RtmpHandle;
 
+/*ÊÓÆµ²ÎÊý*/
+typedef struct __VIDEOPARAM {
+	DWORD nDataCodec;   					//±àÂë·½Ê½
+	//ÊÓÆµ£ºmmioFOURCC('H','2','6','4');
+	DWORD nFrameRate;   					//ÊÓÆµ£ºÊý¾ÝÖ¡ÂÊ
+	DWORD nWidth;       					//ÊÓÆµ£º¿í¶È
+	DWORD nHight;       					//ÊÓÆµ£º¸ß¶È
+	DWORD nColors;      						//ÊÓÆµ£ºÑÕÉ«Êý
+	DWORD nQuality;							//ÊÓÆµ£ºÖÊÁ¿ÏµÊý
+	WORD sCbr;								//ÊÓÆµ£º¶¨ÂëÂÊ/¶¨ÖÊÁ¿
+	WORD sBitrate;							//ÊÓÆµ£º´ø¿í
+} VideoParam;
+/*audio param*/
+typedef struct __AUDIOPARAM {
+	DWORD Codec;  							//Encode Type
+	DWORD SampleRate; 						//SampleRate
+	DWORD BitRate;  						//BitRate
+	DWORD Channel;  						//channel numbers
+	DWORD SampleBit;  						//SampleBit
+	BYTE  LVolume;							//left volume       0 --------31
+	BYTE  RVolume;							//right volume      0---------31
+	WORD  InputMode;                        //1------ MIC input 0------Line Input
+} AudioParam;
+
+
+typedef enum
+{
+	HARDWARE_PLAT_HISI_3516 = 1,
+	HARDWARE_PLAT_HISI_3519 = 2,
+}HARDWARE_PLAT_TYPE;
+
+typedef enum
+{
+	ROLE_TEACHER = 1,
+	ROLE_STUDENT = 2,
+	ROLE_BLACKBORAD = 3,
+}ROLE_TYPE;
+
+#define MAX_VERSION_LEN		(32)
+#define VERSION_INFO		"v1.0.0_20171017"
+typedef struct _DeviceInfo {
+	int   iHardwarePlat;   	//Ó²¼þÆ½Ì¨£¬Hisi3516»òHisi3519
+	int   iRoleType;   		//½ÇÉ«ÀàÐÍ£¬ÀÏÊ¦»ú¡¢Ñ§Éú»ú»ò°åÊé»ú
+	int   iSolutionType;   	//½â¾ö·½°¸ÀàÐÍ£¬Ä¬ÈÏÎª1
+	char  aVersion[MAX_VERSION_LEN];		//°æ±¾ºÅ
+} DeviceInfo;
 
 
 /*send encode data to every client*/

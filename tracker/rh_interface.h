@@ -5,10 +5,6 @@
 #include "hi_comm_video.h"
 #include "hi_comm_vgs.h"
 
-#include "demo.h"
-#include "common.h"
-#include "netcom.h"
-#include "studentTcp.h"
 
 #define VGS_LINE_MAX_POINT			50
 

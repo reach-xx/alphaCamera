@@ -39,7 +39,7 @@ extern "C" {
 //#include "sample_comm.h"
 #include "rh_interface.h"
 #include "rh_encoder_send.h"
-
+#include "auto_track.h"
 
 
 
@@ -93,6 +93,39 @@ typedef struct EncoderIndex_ {
 	int32_t eindex;
 	int32_t pos;
 } EncoderIndex_t;
+
+
+int recv_long_tcp_data(int fd, void *buf, int32_t buflen)
+{
+	int32_t total_recv = 0;
+	int32_t recv_len = 0;
+
+	while(total_recv < buflen) {
+		recv_len = recv(fd, buf + total_recv, buflen - total_recv, 0);
+
+		//add by lcs
+		if(recv_len < 1 && EINTR != errno) {
+			printf("recv tcp data failed,error message:%s, recv_len = %d \n", strerror(errno), recv_len);
+
+			if(0 == recv_len) {
+				return 0;
+			}
+
+			return -1;
+		} else if(recv_len < 1 && EINTR == errno) {
+			usleep(10000);
+			continue;
+		}
+
+		total_recv += recv_len;
+
+		if(total_recv == buflen) {
+			break;
+		}
+	}
+
+	return total_recv;
+}
 
 
 static unsigned long getCurrentTime2(void)
@@ -916,8 +949,6 @@ static void *EncoderProcess(void *pParams)
 			case MSG_LOW_BITRATE:
 				break;
 
-			case MSG_FIX_RESOLUTION:
-				break;
 
 			case MSG_SEND_INPUT:
 				break;
@@ -952,6 +983,8 @@ ExitClientMsg:
 	pthread_exit(0);
 	return NULL;
 }
+
+
 
 static void *EncoderProcess110(void *pParams)
 {
@@ -1055,6 +1088,12 @@ static void *EncoderProcess110(void *pParams)
 
 			case MSG_ADD_TEXT:	//???
 				printf( "enter into MSG_ADD_TEXT \n");
+				break;
+		    case MSG_RESTARTSYS:
+				system("sync");
+				sleep(4);
+				SAMPLE_PRT( "Restart sys\n");
+				system("reboot -f");
 				break;
 
 			case MSG_FARCTRL:
@@ -1184,16 +1223,7 @@ static void *EncoderProcess110(void *pParams)
 			case MSG_SAVEPARAMS:		//?????????flash
 				printf( "Save Params!\n");
 				break;
-
-			case MSG_RESTARTSYS:
-				printf( "Restart sys\n");
-				system("reboot -f");
-				break;
-
-			case MSG_UpdataFile: { //????????
-			}
-			break;
-
+	
 			case MSG_UPDATEFILE_ROOT:
 				printf( "Updata Root file\n");
 				break;
@@ -1216,11 +1246,19 @@ static void *EncoderProcess110(void *pParams)
 			case MSG_LOW_BITRATE:
 				break;
 
-			case MSG_FIX_RESOLUTION:
-				break;
-
 			case MSG_SEND_INPUT:
 				break;
+			case MSG_SET_TRACK_PARAM:
+				//track_students_right_side_param(&szData[HEAD_LEN],sSocket);
+				//memcpy(&track_param, &szData[HEAD110_LEN], nMsgLen - HEAD_LEN);
+				track_students_right_side_param(&szData[HEAD110_LEN],(int)sSocket);
+				SAMPLE_PRT( "track_students_right_side_param!\n");
+				break;
+
+			case MSG_UpdataFile: { //Éý¼¶¹ý³Ì
+			
+				break;
+			}
 
 			default:
 				printf( "Cmd=%d!\n", phead->nMsg);
@@ -2271,6 +2309,7 @@ HI_VOID* RH_MPI_VENC_GetVencStreamProc(HI_VOID* p)
                      step 2.5 : send frame to EncoderManage
                     *******************************************************/
                		if(i < 3)
+
                     {
 
 						VENC_CHN_ATTR_S chAttr;

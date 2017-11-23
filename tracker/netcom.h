@@ -322,6 +322,8 @@ typedef struct __DSPClientParam {
 	DSPClientData cliDATA[MAX_CLIENT]; //client param infomation
 } DSPClientParam;
 /*message header*/
+
+#if 0
 typedef struct __HDB_MSGHEAD {
 	/*
 	##  length for htons change
@@ -333,7 +335,9 @@ typedef struct __HDB_MSGHEAD {
 	BYTE	nMsg;							//message type
 	BYTE	szTemp[3];						//reserve
 } HDBMSGHEAD;
+
 #define HEAD_LEN2			sizeof(HDBMSGHEAD)
+#endif
 #define HEAD_LEN			3
 typedef struct _SysDSPParamsV2 {
 	unsigned char szMacAddr[8];
@@ -787,7 +791,7 @@ extern int InitProtocolParam(Protocol *pp);
 /*print protocol*/
 extern int PrintProtocol(Protocol *pp);
 /*check IP addr and Netmask */
-extern int CheckIPNetmask(int ipaddr, int netmask, int gw);
+
 extern unsigned int GetIPaddr(char *interface_name);
 extern unsigned int GetNetmask(char *interface_name);
 extern unsigned int GetBroadcast(char *interface_name);

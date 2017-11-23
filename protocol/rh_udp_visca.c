@@ -22,12 +22,10 @@ extern "C" {
 
 
 static pthread_t gs_ProtoPid;
-static pthread_t gs_ProcessPid;
-
 static HI_BOOL gs_ThreadStart = HI_TRUE;
 /*远遥计算实时坐标值*/
-static RH_Coord gs_Coord = {0};
-static int 	gs_inc = 6;
+RH_Coord gs_Coord = {0};
+
 /*VISCA协议格式定义*/
 static RH_Procotol procoVisca = {
 	/*类型VISCA协议*/
@@ -128,68 +126,93 @@ HI_BOOL CompareCmd(unsigned char *src ,unsigned char *dst, int len)
 	return HI_TRUE;
 }
 
-/*云台设置*/
-HI_S32 RH_CoordSet(const RH_Coord *pCoord)
+
+/*测试设置云台*/
+HI_S32 TestViscaPTZ(int cmd_mode)
 {
-	HI_S32 S32Ret;
-	VPSS_CROP_INFO_S stVpssCropInfo = {0};
-	
-	stVpssCropInfo.bEnable = HI_TRUE;
-	stVpssCropInfo.enCropCoordinate = VPSS_CROP_ABS_COOR;
-	stVpssCropInfo.stCropRect.u32Width  = OUTPUT_WIDTH;
-	stVpssCropInfo.stCropRect.u32Height = OUTPUT_HEIGHT;
+	RH_Coord  *pCoord = &gs_Coord;
+	HI_U32  s32Ret =HI_SUCCESS;
 
-	return S32Ret;
-}
+#if 0
+	pCoord->bEnable =HI_TRUE;
+	pCoord->cmd_mode = VISCA_UP;
+	pCoord->vSpeed = 6;
+	pCoord->wSpeed = 6;
+
+/*	
+	pCoord->bEnable =HI_TRUE;
+	pCoord->cmd_mode = VISCA_ZOOMTELE;
+	pCoord->vSpeed = 6;
+	pCoord->wSpeed = 6;	
+*/
+	sleep(6);
+	SAMPLE_PRT("------------------------------------------------------------UP-----------\n");
+	pCoord->bEnable =HI_TRUE;
+	pCoord->cmd_mode = VISCA_DOWN;
+	pCoord->vSpeed = 6;
+	pCoord->wSpeed = 6;	
+	sleep(6);
+	SAMPLE_PRT("-------------------------------------------------------------DOWN----------\n");
+	pCoord->bEnable =HI_TRUE;
+	pCoord->cmd_mode = VISCA_LEFT;
+	pCoord->vSpeed = 6;
+	pCoord->wSpeed = 6;	
+	sleep(6);
+	SAMPLE_PRT("-------------------------------------------------------------LEFT----------\n");
+
+	pCoord->bEnable =HI_TRUE;
+	pCoord->cmd_mode = VISCA_RIGHT;
+	pCoord->vSpeed = 6;
+	pCoord->wSpeed = 6;	
+	sleep(6);
+	SAMPLE_PRT("--------------------------------------------------------------RIGHT---------\n");
+
+	pCoord->bEnable =HI_TRUE;
+	pCoord->cmd_mode = VISCA_UPLEFT;
+	pCoord->vSpeed = 6;
+	pCoord->wSpeed = 6;	
+	sleep(6);
+	SAMPLE_PRT("--------------------------------------------------------------UPLEFT---------\n");
+	pCoord->bEnable =HI_TRUE;
+	pCoord->cmd_mode = VISCA_DOWNRIGHT;
+	pCoord->vSpeed = 6;
+	pCoord->wSpeed = 6;	
+	sleep(10);
+	SAMPLE_PRT("---------------------------------------------------------------DOWNRIGHT--------\n");
+
+	pCoord->bEnable =HI_TRUE;
+	pCoord->cmd_mode = VISCA_DOWNLEFT;
+	pCoord->vSpeed = 6;
+	pCoord->wSpeed = 6;	
+	sleep(10);
+	SAMPLE_PRT("---------------------------------------------------------------DOWNLEFT--------\n");
+	pCoord->bEnable =HI_TRUE;
+	pCoord->cmd_mode = VISCA_UPRIGHT;
+	pCoord->vSpeed = 6;
+	pCoord->wSpeed = 6;	
+	sleep(10);
+	SAMPLE_PRT("----------------------------------------------------------------UPRIGHT-------\n");
+#endif
+
+	pCoord->bEnable =HI_TRUE;
+	pCoord->cmd_mode = VISCA_ZOOMTELE;
+	pCoord->vSpeed = 6;
+	pCoord->wSpeed = 6; 
+	sleep(4);
+	SAMPLE_PRT("----------------------------------------------------------------VISCA_ZOOMTELE-------\n");
 
 
-/*VISCA协议函数*/
-HI_S32 RH_CoordCalc(RH_Coord *pCoord)
-{
-	HI_S32 s32Ret = HI_SUCCESS;	
-	
-	switch (pCoord->cmd_mode)
+/*	s32Ret = RH_MPI_VPSS_GetChnCrop(VpssChn,&pCoord->rect);	
+	if (HI_SUCCESS != s32Ret)
 	{
-		case VISCA_UP:   //UP
-			pCoord->rect.s32Y -= gs_inc*pCoord->vSpeed;
-			if(pCoord->rect.s32Y <= 0)	{
-				pCoord->rect.s32Y = 0;
-			}	
-			break;
-		case VISCA_DOWN:
-			
-			break;
-		case VISCA_LEFT:
-			
-			break;
-		case VISCA_RIGHT:
-			
-			break;
-		case VISCA_UPLEFT:
-			
-			break;
-		case VISCA_DOWNLEFT:
-			
-			break;
-		case VISCA_UPRIGHT:
-			
-			break;
-		case VISCA_DOWNRIGHT:
-			
-			break;
-		case VISCA_STOP:
-			
-			break;
-		case VISCA_ZOOMTELE:   //变倍大
-		
-			break;
-		case VISCA_ZOOMWIDE:   //变倍小
-			
-			break;
-		default:
-			SAMPLE_PRT("visca command error!!! mode =%d\n", pCoord->cmd_mode);
-			break;	
+		SAMPLE_PRT("GET VPSS Crop Failed 0x%x\n",s32Ret);
 	}
+	
+	SAMPLE_PRT("<TestViscaPTZ > Crop: X=%d   Y =%d   width: %d   height:%d  \n",pCoord->rect.s32X,
+					pCoord->rect.s32Y,pCoord->rect.u32Width,pCoord->rect.u32Height);
+*/
+	
+		
 	return s32Ret;
 }
 
@@ -263,20 +286,6 @@ HI_VOID* RH_UDP_Recv_Parse(HI_VOID* pdata)
 }
 
 
-/*协议处理线程*/
-HI_VOID* RH_ProtoProcess(HI_VOID* pdata)
-{
-	RH_Coord *pCoord = &gs_Coord;	
-
-	while(HI_TRUE == gs_ThreadStart)
-	{
-		RH_CoordCalc(pCoord);
-		RH_CoordSet(pCoord);
-		usleep(33*1000);
-	}
-	return ;
-}
-
 /*Ycat 启动使用UDP接收Visca协议*/
 HI_S32 RH_UDP_Proto_Start(HI_VOID)
 {
@@ -284,7 +293,6 @@ HI_S32 RH_UDP_Proto_Start(HI_VOID)
 	int i = 0;
 
 	s32Ret = pthread_create(&gs_ProtoPid, 0, RH_UDP_Recv_Parse, (HI_VOID*)NULL);
-	s32Ret = pthread_create(&gs_ProcessPid, 0, RH_ProtoProcess, (HI_VOID*)NULL);	
 	return s32Ret;
 }
 
@@ -297,7 +305,6 @@ HI_U32 RH_UDP_Proto_Stop(HI_VOID)
     {
         gs_ThreadStart = HI_FALSE;
         pthread_join(gs_ProtoPid, 0);
-		pthread_join(gs_ProcessPid, 0);
     }
 	return HI_SUCCESS;
 }

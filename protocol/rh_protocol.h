@@ -21,6 +21,16 @@
 #define OUTPUT_WIDTH		1920
 #define OUTPUT_HEIGHT		1080
 
+/*Sensor 输出分辨率*/
+#define SENSOR_OUTPUT_W		3840
+#define SENSOR_OUTPUT_H		2160
+
+/*数字云台最小分辨率*/
+#define PTZ_MIN_WIDTH       960
+#define PTZ_MIN_HEIGHT		540
+
+/*计算坐标*/
+
 
 /*Define coordinate mode*/
 typedef enum hiVISCA_E   
@@ -58,11 +68,13 @@ typedef struct __RH_PROCOTOL_H__
 /* ---- ------ ----- ----- ----- ----- ----- ----- ----- ----- ----- -----*/
 typedef struct __RH_COORD_
 {
+	HI_BOOL  bAuto;      /*手动模式--FALSE      自动模式—-TRUE*/
 	HI_BOOL  bEnable;    /*启动*/
-	int      cmd_mode;   /*协议类型       VISCA，PELCO-D，PELCO-P等*/
+	int      cmd_mode;   //命令的类型  上下左右等
 	int 	 vSpeed;     //V速度
 	int      wSpeed;     //W速度	
-	RECT_S   rect;       //计算实时坐标
+	RECT_S   rect;       //计算当前实时坐标
+	RECT_S   end_rect;   //自动模式下，移动结束位置
 }RH_Coord;
 
 #endif   //__RH_PROCOTOL_H

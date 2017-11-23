@@ -7,13 +7,16 @@ INC := -I./tracker/ \
    -I./ \
    -I./sender/ \
    -I./protocol/\
-   -I./include
-
+   -I./include\
+   -I./protocol/ \
+   -I./strategy
+   
 HEADS:=$(wildcard *.h)
 SRC  := $(wildcard *.c) 
 MODULE_SRC := $(wildcard tracker/*.c) \
-   $(wildcard sender/*.c) \
-   $(wildcard protocol/*.c)
+   $(wildcard sender/*.c)\
+   $(wildcard protocol/*.c) \
+   $(wildcard strategy/*.c)
 
 OBJ  := $(SRC:%.c=%.o) 
 MODULE_OBJ  := $(MODULE_SRC:%.c=%.o)

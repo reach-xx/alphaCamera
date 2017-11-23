@@ -12,9 +12,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-
-#include "netcom.h"
+#include "../strategy/common.h"
+#include "rwini.h"
 
 #define SuccessRet 1;
 #define FailedRet  0;

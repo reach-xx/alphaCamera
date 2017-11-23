@@ -208,15 +208,6 @@ int ReadRemoteCtrlIndex(const char *config_file, int *index)
 
 	*index = atoi(temp);
 	return 1;
-	/*
-	ret =  ConfigGetKey(config_file,"remote","enable",temp);
-	if(ret != 0 ) {
-		DEBUG(DL_ERROR,"Failed to Get remote index\n");
-		goto EXIT;
-	}
-	enable = atoi(temp);
-	*/
-
 }
 
 /*save remote control index*/
@@ -400,7 +391,7 @@ static int JoinMacAddr(char *dst, unsigned char *src, int num)
 	return 0;
 }
 /*check IP addr */
-int CheckIP(int ipaddr, int netmask)
+static int CheckIP(int ipaddr, int netmask)
 {
 	int mask, ip, gateip;
 	mask = netmask;
@@ -442,7 +433,7 @@ int CheckIP(int ipaddr, int netmask)
 
 
 /*check IP addr and Netmask */
-int CheckIPNetmask(int ipaddr, int netmask, int gw)
+static int CheckIPNetmask(int ipaddr, int netmask, int gw)
 {
 	int mask, ip, gateip;
 	mask = netmask;
@@ -3288,9 +3279,7 @@ int PrintsysParamTable(SavePTable *tbl)
  * in_cksum --
  *	Checksum routine for Internet Protocol family headers (C Version)
  */
-int in_cksum(addr, len)
-u_short *addr;
-int len;
+int in_cksum(u_short *addr, int len)
 {
 	register int nleft = len;
 	register u_short *w = addr;
@@ -3875,7 +3864,7 @@ void SendAudioToClient(int nLen, unsigned char *pData,
 					SETCLIUSED(index, cnt, FALSE);
 					SETCLILOGIN(index, cnt, FALSE);
 					//SETFARCTRLLOCK(index, cnt, 0);
-					writeWatchDog();
+				//	writeWatchDog();
 					fprintf(stderr, "Audio Send error index:%d, cnt:%d %d nSendLen:%d  ,nRet:%d\n", index, cnt, errno, nSendLen, nRet);
 				}
 
