@@ -23,7 +23,6 @@ extern "C" {
 static HI_BOOL gs_PTZStart = HI_TRUE;
 static pthread_t gs_PTZPid;
 static int 	gs_step = 1;
-extern RH_Coord gs_Coord;
 
 
 /*云台设置*/
@@ -31,9 +30,6 @@ HI_S32 RH_CoordSet(const RH_Coord *pCoord)
 {
 	HI_S32 S32Ret;
 	VPSS_CHN  vpssChn = VPSS_CROP_EXTCHN ;
-
-	SAMPLE_PRT("Crop: X=%d   Y =%d   width: %d   height:%d  \n",pCoord->rect.s32X,
-					pCoord->rect.s32Y,pCoord->rect.u32Width,pCoord->rect.u32Height);
 	RH_MPI_VPSS_SetChnCrop(vpssChn, &pCoord->rect);
 	return S32Ret;
 	
@@ -59,7 +55,6 @@ HI_VOID* RH_CheckMoveWay(int x,int y)
 	
 	pCoord->end_rect.s32X  = x;
 	pCoord->end_rect.s32Y  = y;
-	SAMPLE_PRT("ChickMoveWay (x,y)=(%d, %d) \n", x, y);
 	
 	if (pCoord->rect.s32X > x && pCoord->rect.s32Y == y)	{
 		pCoord->cmd_mode = VISCA_LEFT;
@@ -92,6 +87,8 @@ HI_VOID* RH_CheckMoveWay(int x,int y)
 	{
 		pCoord->cmd_mode = VISCA_UPLEFT;
 	}	
+	SAMPLE_PRT("ChickMoveWay (x,y)=(%d, %d)   VISCA: %d\n", pCoord->end_rect.s32X, pCoord->end_rect.s32Y , pCoord->cmd_mode);
+	
 }
 
 #if 0
@@ -178,11 +175,10 @@ HI_S32 RH_AUTOCoordCalc(RH_Coord *pCoord)
 	rCur = rOut;
 	pCoord->rect.s32Y =  pCoord->end_rect.s32Y;
 	pCoord->rect.s32X =  rOut.s32X;	
-	printf("MoveVISCAFunc  rCur:(%d,%d),	rDst:(%d, %d) ,rOut:(%d, %d)!!!! \n\n", rCur.s32X, rCur.s32Y, rDst.s32X, rDst.s32Y, rOut.s32X, rOut.s32Y);
+//	printf("MoveVISCAFunc  rCur:(%d,%d),	rDst:(%d, %d) ,rOut:(%d, %d)!!!! \n\n", rCur.s32X, rCur.s32Y, rDst.s32X, rDst.s32Y, rOut.s32X, rOut.s32Y);
 	
 	return s32Ret;
 }
-
 
 
 /*函数计算坐标  ---- 手动模式*/
@@ -373,7 +369,7 @@ HI_S32 RH_ManualCoordCalc(RH_Coord *pCoord)
 HI_VOID* RH_PTZControl(HI_VOID* pdata)
 {
 	RH_Coord *pCoord = &gs_Coord;	
-
+		
 	while(HI_TRUE == gs_PTZStart)
 	{
 		while(HI_TRUE == pCoord->bEnable)  {
@@ -395,11 +391,10 @@ HI_VOID* RH_PTZControl(HI_VOID* pdata)
 HI_S32 RH_PTZ_Contrl_Start(HI_VOID)
 {
 	HI_S32 s32Ret = HI_SUCCESS;
-	int i = 0;
 
-	/*TEST 修改为自动模式测试用*/
-	gs_Coord.bAuto = HI_TRUE;
-	
+	/*TODO: TEST 修改为自动模式测试用*/
+	gs_Coord.bAuto = HI_TRUE;	
+	gs_Coord.bEnable = HI_TRUE;
 	s32Ret = pthread_create(&gs_PTZPid, 0, RH_PTZControl, (HI_VOID*)NULL);
 	return s32Ret;
 }

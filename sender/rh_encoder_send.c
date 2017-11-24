@@ -1,5 +1,3 @@
-
-
 #ifdef __cplusplus
 #if __cplusplus
 extern "C" {
@@ -36,12 +34,9 @@ extern "C" {
 #include <sys/types.h>
 #include "ReachLive555Port.h"
 
-//#include "sample_comm.h"
 #include "rh_interface.h"
 #include "rh_encoder_send.h"
 #include "auto_track.h"
-
-
 
 
 static pthread_t gs_VencPid;
@@ -49,8 +44,6 @@ static SAMPLE_VENC_GETSTREAM_PARA_S gs_stPara;
 
 
 /*client param infomation*/
-
-
 
 int 	gRunStatus = 1;
 int 	gRunStatus_ex[3] = {1, 1, 1};
@@ -73,12 +66,11 @@ static unsigned char gszSendBuf110[MAX_PACKET];
 pthread_mutex_t g_send_m;
 pthread_mutex_t g_send110_m;
 
-
 #define ENC_MAX_NUM 10
 
-
 #define MAX_STREAM_NUM 4
-int ClientType[MAX_STREAM_NUM]  = {-1}; 
+
+int ClientType[ENC_MAX_NUM]  = {-1}; 
 int studentFlag = 0; 
 
 static unsigned long g_audio_time = 0;
@@ -86,8 +78,6 @@ static unsigned long g_audio_time = 0;
 
 static void *rtspSend[3] = {NULL,NULL,NULL};
 static RtmpHandle handle[3];
-
-
 
 typedef struct EncoderIndex_ {
 	int32_t eindex;
@@ -724,9 +714,6 @@ static int Pwd2ClientTypePro(char *pPwd, int nPos)
 static void *EncoderProcess(void *pParams)
 {
 	int					sSocket = -1;
-	//WORD					length;
-
-	//char			szPass[] = "reach123";
 	char *szData = NULL;
 
 	int 					nPos					= 0;
@@ -738,9 +725,7 @@ static void *EncoderProcess(void *pParams)
 	nPos = *pnPos;
 	free(pParams);
 	sSocket = GETSOCK(DSP1, nPos);
-	//SysParamsV2 sys2;
-//	SysParamsV2 sys2;
-	/*????TCP?????? 3s*/
+
 	SetSendTimeOut(sSocket, 3);
 
 	sem_post(&g_sem);
@@ -860,34 +845,27 @@ static void *EncoderProcess(void *pParams)
 
 					}
 				} else if((szData[HEAD_LEN] == 'U') && ((!strcmp("reach123", szData + HEAD_LEN + 1)) || (!strcmp("123", szData + HEAD_LEN + 1)))) {
-
 					SETLOGINTYPE(PORT_ONE, nPos, LOGIN_USER);
 					ClientType[nPos] = 1;
 					printf(  "logo User!\n");
 				} else if((szData[HEAD_LEN] == 'A') && Pwd2ClientTypePro(szData + HEAD_LEN + 1, nPos)) {
-
 					printf("MSG_PASSWORD:[%s]\n", szData + HEAD_LEN + 1);
-
 				}
 				else {
 					PackHeaderMSG((BYTE *)szData, MSG_PASSWORD_ERR, HEAD_LEN);
 					send(sSocket, szData, HEAD_LEN, 0);
 					printf( "MSG_PASSWORD [%s] error!\n", szData + HEAD_LEN + 1);
 					SETLOGINTYPE(PORT_ONE, nPos, LOGIN_ADMIN);
-
 					ClientType[nPos] = -1;
 					goto ExitClientMsg;   //
 				}
-
 				PackHeaderMSG((BYTE *)szData, MSG_CONNECTSUCC, HEAD_LEN);
 				send(sSocket, szData, HEAD_LEN, 0);
 				printf( "send MSG_CONNECTSUCC\n");
 
-
 				PackHeaderMSG((BYTE *)szData, MSG_SYSPARAMS, HEAD_LEN+sizeof(gSysParsm));
 				memcpy(szData + HEAD_LEN, &gSysParsm, sizeof(gSysParsm));
 				send(sSocket, szData, HEAD_LEN + sizeof(gSysParsm), 0);
-			
 
 				printf( "user log!  DSP:%d  client:%d \n", DSP1, nPos);
 				SETCLIUSED(DSP1, nPos, TRUE);
@@ -897,24 +875,12 @@ static void *EncoderProcess(void *pParams)
 				break;
 			}
 
-			case MSG_SYSPARAMS: { //?????????
-#if 0
-				length = 3 + sizeof(gSysParsm);
-				PackHeaderMSG((BYTE *)szData, MSG_SYSPARAMS, length);
-				memcpy(szData + 3, &gSysParsm, sizeof(gSysParsm));
-				send(sSocket, szData, length, 0);
-#endif
+			case MSG_SYSPARAMS: 
 				printf( "Get Sys Params ..........................\n");
-			}
-			break;
-
-			case MSG_SETPARAMS: {	//??????????
-
-				//printf( "Set Params! gSysParams %d Bytes\n", sizeof(SysParamsV2));
-			}
-			break;
-
-			case MSG_SAVEPARAMS:		//?????????flash
+				break;
+			case MSG_SETPARAMS: 
+				break;
+			case MSG_SAVEPARAMS:		
 				printf( "Save Params!\n");
 				break;
 
@@ -923,10 +889,8 @@ static void *EncoderProcess(void *pParams)
 				system("reboot -f");
 				break;
 
-			case MSG_UpdataFile: { //????????
-			}
-			break;
-
+			case MSG_UpdataFile: 
+				break;
 			case MSG_UPDATEFILE_ROOT:
 				printf( "Updata Root file\n");
 				break;
@@ -934,7 +898,6 @@ static void *EncoderProcess(void *pParams)
 			case MSG_REQ_I:
 				printf( "Request I Frame!\n");
 				break;
-
 			case MSG_PIC_DATA:
 				printf( "SetPPTIndex\n");
 				break;
@@ -948,7 +911,6 @@ static void *EncoderProcess(void *pParams)
 
 			case MSG_LOW_BITRATE:
 				break;
-
 
 			case MSG_SEND_INPUT:
 				break;
@@ -1050,37 +1012,32 @@ static void *EncoderProcess110(void *pParams)
 		}
 		switch(szData[2]) {
 			case MSG_REQ_AUDIO:
-				printf( "DSP1 request Audio Data \n");
+				printf( "DSP2 request Audio Data \n");
 				break;
 
 			case MSG_GET_AUDIOPARAM:
-				printf( "DSP1 Get AudioParam \n");
-
-			//	GetAudioParam(sSocket, PORT_ONE, (BYTE *)&szData[HEAD110_LEN], nMsgLen - HEAD110_LEN);
+				printf( "DSP2 Get AudioParam \n");
 				break;
 
 			case MSG_SET_AUDIOPARAM:
-				printf( "DSP1 Set AudioParam \n");
+				printf( "DSP2 Set AudioParam \n");
 				break;
 
 			case MSG_GET_VIDEOPARAM:
 				GetVideoParam(sSocket, DSP2, (BYTE *)&szData[HEAD110_LEN], nMsgLen - HEAD110_LEN);
 
-				printf( "DSP1 Get VideoParam \n");
+				printf( "DSP2 Get VideoParam \n");
 				break;
 
 			case MSG_SET_VIDEOPARAM:
-				//SetVideoParam(PORT_ONE, (BYTE *)&szData[HEAD_LEN], nMsgLen - HEAD_LEN);
-				printf( "DSP1 Set VideoParam \n");
+				printf( "DSP2 Set VideoParam \n");
 				break;
 
 			case MSG_SETVGAADJUST:
-				printf( "DSP1 ReviseVGAPic vga picture!\n");
-				//			ReviseVGAPic(DSP1,(unsigned char *)&szData[3],nMsgLen-3);
+				printf( "DSP2 ReviseVGAPic vga picture!\n");
 				break;
 
 			case MSG_GSCREEN_CHECK:
-				//			GreenScreenAjust();
 				break;
 
 			case MSG_SET_DEFPARAM:
@@ -1097,8 +1054,6 @@ static void *EncoderProcess110(void *pParams)
 				break;
 
 			case MSG_FARCTRL:
-//				printf( "MSG_FARCTRL:sdi[]", ClientType[nPos]/2);
-				//FarCtrlCamera(ClientType[nPos]/2, (unsigned char *)&szData[HEAD_LEN], nMsgLen - HEAD_LEN);
 				break;
 
 			case MSG_SET_SYSTIME:
@@ -1123,7 +1078,6 @@ static void *EncoderProcess110(void *pParams)
 
 					}
 				} else if((szData[HEAD110_LEN] == 'U') && ((!strcmp("reach123", szData + HEAD110_LEN + 1)) || (!strcmp("123", szData + HEAD110_LEN + 1)))) {
-
 					SETLOGINTYPE(DSP2, nPos, LOGIN_USER);
 					printf(  "logo User!\n");
 				} 
@@ -1132,8 +1086,6 @@ static void *EncoderProcess110(void *pParams)
 					send(sSocket, szData, HEAD110_LEN, 0);
 					printf( "MSG_PASSWORD [%s] error!\n", szData + HEAD110_LEN + 1);
 					SETLOGINTYPE(DSP2, nPos, LOGIN_ADMIN);
-
-					//ClientType[nPos] = -1;
 					goto ExitClientMsg;   //
 				}
 
@@ -1193,7 +1145,6 @@ static void *EncoderProcess110(void *pParams)
 				{
 					printf("send error \n");
 				}
-			
 
 				printf( "user log!  DSP:%d  client:%d \n", DSP2, nPos);
 				SETCLIUSED(DSP2, nPos, TRUE);
@@ -1215,8 +1166,6 @@ static void *EncoderProcess110(void *pParams)
 			break;
 
 			case MSG_SETPARAMS: {	//??????????
-
-				//printf( "Set Params! gSysParams %d Bytes\n", sizeof(SysParamsV2));
 			}
 			break;
 
@@ -1256,7 +1205,6 @@ static void *EncoderProcess110(void *pParams)
 				break;
 
 			case MSG_UpdataFile: { //升级过程
-			
 				break;
 			}
 
@@ -1416,7 +1364,6 @@ SERVERSTARTRUN:
 
 //#define ENC110
 
-				
 				result = pthread_create(&client_threadid[nPos], NULL, EncoderProcess, (void *)pnPos);
 
 				if(result) {
@@ -1424,8 +1371,7 @@ SERVERSTARTRUN:
 					SETCLIUSED(DSP1, nPos, FALSE);
 					SETSOCK(DSP1, nPos, INVALID_SOCKET);
 					SETLOGINTYPE(DSP1, nPos, LOGIN_USER);
-					SETCLILOGIN(DSP1, nPos, FALSE);
-			
+					SETCLILOGIN(DSP1, nPos, FALSE);	
 
 					printf(  "creat pthread ClientMsg error  = %d!\n" , errno);
 					continue;
@@ -1703,8 +1649,7 @@ int StartEncoderMangerServer()
 {
 	int result;
 	pthread_t	serverThid;
-	//int32_t *index = (int32_t *)malloc(sizeof(int32_t));
-	//*index = eindex;
+
 	pthread_mutex_init(&g_send_m, NULL);
 	pthread_mutex_init(&g_send110_m, NULL);
 
@@ -1713,14 +1658,13 @@ int StartEncoderMangerServer()
 	InitVideoParam(&gvideoPara);
 	printf("r_pthread_create------------------[%s:%s:%d] \n", __FILE__, __FUNCTION__, __LINE__);
 
-#if 1
 	result = pthread_create(&serverThid, NULL, EncoderServerThread, (void *)NULL);
 
 	if(result < 0) {
 		printf("create EncoderServerThread() failed\n");
 		return -1;
 	}
-#endif
+
 	result = pthread_create(&serverThid, NULL, EncoderServerThread110, (void *)NULL);
 
 	if(result < 0) {
@@ -1879,7 +1823,6 @@ int RtmpAddAudio(RtmpHandle *handle, int channels, int samplerate)
 		handle->enableAudio = 1;
 	}
 
-	
 	pthread_mutex_unlock(&phandle->lock);
 	
 	return 0;
@@ -2078,6 +2021,7 @@ int RtmpSendAudio(RtmpHandle *handle, char *ptr, int len)
 	return 0;
 }
 
+
 int RtmpSendVido(RtmpHandle *handle, char *ptr, int len,int isIframe)
 {
 	if(!handle)
@@ -2147,17 +2091,13 @@ HI_VOID* RH_MPI_VENC_GetVencStreamProc(HI_VOID* p)
 	{
 		RtmpInit(&handle[i]);
 		RtmpAddVideo(&handle[i], 1920, 1080, 2000000);
-		char url[256] = {0};
-		sprintf(url,"rtmp://192.168.4.83/live/%d",i);		
-		RtmpOpenUrl(&handle[i], url);
+		//char url[256] = {0};
+		//sprintf(url,"rtmp://192.168.4.83/live/%d",i);		
+		//RtmpOpenUrl(&handle[i], url);
 		RtspStartLiveStream(i);
 	}
 
-
 	RtspLiveServerStart();
-
-	
-
 
     /******************************************
      step 1:  check & prepare save-file & venc-fd
@@ -2283,8 +2223,7 @@ HI_VOID* RH_MPI_VENC_GetVencStreamProc(HI_VOID* p)
 					int dataLen = 0;
 					int isIframe = 0;
 
-
-					#if 1
+					/*多个包组包发送*/
 					for (j = 0; j < stStream.u32PackCount; j++)
 					{
 						if((dataLen + (stStream.pstPack[j].u32Len-stStream.pstPack[j].u32Offset)) > 1920*1080*2)
@@ -2304,14 +2243,12 @@ HI_VOID* RH_MPI_VENC_GetVencStreamProc(HI_VOID* p)
 						}
 						
 					}
-					#endif
+
                     /*******************************************************
                      step 2.5 : send frame to EncoderManage
                     *******************************************************/
                		if(i < 3)
-
                     {
-
 						VENC_CHN_ATTR_S chAttr;
 						int width,height;
 						s32Ret = HI_MPI_VENC_GetChnAttr(i,&chAttr);
@@ -2324,11 +2261,8 @@ HI_VOID* RH_MPI_VENC_GetVencStreamProc(HI_VOID* p)
 						
 						width = chAttr.stVeAttr.stAttrH264e.u32PicWidth;
 						height = chAttr.stVeAttr.stAttrH264e.u32PicHeight;
-					
 						
-						//s32Ret = RH_MPI_VENC_SendData(&stStream);
 						SendDataToClientEx(dataLen, pdata, isIframe , i, width, height);
-
 						if(i == 2)
 						{
 							SendDataToClient110(dataLen, pdata, isIframe , i, width, height);
@@ -2339,12 +2273,10 @@ HI_VOID* RH_MPI_VENC_GetVencStreamProc(HI_VOID* p)
 							RtspLiveServerSendVideoFrame(rtspSend[i], pdata,   dataLen);
 						}
 	
-
 						if(handle[i].enableVideo)
 						{
 							RtmpSendVido(&handle[i], pdata, dataLen, isIframe);
-						}
-					
+						}					
 	         
                     }
 				
@@ -2380,6 +2312,7 @@ HI_S32 RH_MPI_VENC_StartGetStream(HI_S32 s32Cnt)
     gs_stPara.s32Cnt = s32Cnt;
 	HI_U32 result;
 
+	/*开启ENC1200及ENC110 连接协议*/
 	StartEncoderMangerServer();
 	result = pthread_create(&gs_VencPid, 0, RH_MPI_VENC_GetVencStreamProc, (HI_VOID*)&gs_stPara);
     return result;

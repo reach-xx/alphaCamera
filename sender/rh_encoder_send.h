@@ -43,8 +43,8 @@ typedef int DSPFD;
 #define MAX_FAR_CTRL_NUM		5
 
 
-#define PORT_LISTEN_DSP2		3100
-#define PORT_LISTEN_DSP1		3200
+#define PORT_LISTEN_DSP1		3100
+#define PORT_LISTEN_DSP2		3200
 
 #define INVALID_SOCKET 			-1
 

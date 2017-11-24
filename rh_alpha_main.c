@@ -119,10 +119,8 @@ HI_S32 RH_MPI_VPSS_SetChnCrop(VPSS_CHN VpssChn , RECT_S *pCropRect)
 	VPSS_CROP_INFO_S stVpssCropInfo = {0};
 	VPSS_GRP  	VpssGrp =  0;	
 	HI_S32 		s32Ret = HI_SUCCESS ;
+	static RECT_S  old_rect = {0}; 
 
-	SAMPLE_PRT("Crop: X=%d   Y =%d   width: %d   height:%d  \n",pCropRect->s32X,
-					pCropRect->s32Y,pCropRect->u32Width,pCropRect->u32Height);
-	
     stVpssCropInfo.bEnable 				= HI_TRUE;
     stVpssCropInfo.enCropCoordinate 	= VPSS_CROP_ABS_COOR;
     stVpssCropInfo.stCropRect.s32X 		= CEILING_2_POWER(pCropRect->s32X,2);
@@ -130,13 +128,25 @@ HI_S32 RH_MPI_VPSS_SetChnCrop(VPSS_CHN VpssChn , RECT_S *pCropRect)
     stVpssCropInfo.stCropRect.u32Width  = CEILING_2_POWER(pCropRect->u32Width,2);
     stVpssCropInfo.stCropRect.u32Height = CEILING_2_POWER(pCropRect->u32Height,2);
 
-	s32Ret = HI_MPI_VPSS_SetExtChnCrop(VpssGrp, VpssChn, &stVpssCropInfo);
-    if (HI_SUCCESS != s32Ret)
-    {
-        SAMPLE_PRT("set VPSS group crop Failed! 0x%x\n", s32Ret);
-        return s32Ret;
-    }
-
+	/*保证不重复设置坐标*/
+	if(old_rect.s32X != stVpssCropInfo.stCropRect.s32X  || 
+			old_rect.s32Y != stVpssCropInfo.stCropRect.s32Y || 
+				stVpssCropInfo.stCropRect.u32Width != old_rect.u32Width || 
+					stVpssCropInfo.stCropRect.u32Height != old_rect.u32Height) {
+		SAMPLE_PRT("Crop: X=%d	 Y =%d	 width: %d	 height:%d	\n",pCropRect->s32X,
+						pCropRect->s32Y,pCropRect->u32Width,pCropRect->u32Height);
+		s32Ret = HI_MPI_VPSS_SetExtChnCrop(VpssGrp, VpssChn, &stVpssCropInfo);
+		if (HI_SUCCESS != s32Ret)
+		{
+			SAMPLE_PRT("set VPSS group crop Failed! 0x%x\n", s32Ret);
+			return s32Ret;
+		}
+		old_rect.s32X      =  stVpssCropInfo.stCropRect.s32X;		
+		old_rect.s32Y      =  stVpssCropInfo.stCropRect.s32Y;
+		old_rect.u32Width  =  stVpssCropInfo.stCropRect.u32Width;
+		old_rect.u32Height =  stVpssCropInfo.stCropRect.u32Height;
+	}
+					
 	return s32Ret;
 
 }
@@ -418,22 +428,21 @@ HI_U32 RH_AlphaCAM_Routine(HI_VOID)
         SAMPLE_PRT("Start Venc failed!\n");
         goto END_1080P_7;
     }	
-
 	/*分析算法启动*/	
 	RH_Track_Algorithm_Start(VpssChn3);	
-	/*VISCA协议*/
-//	RECT_S crop_rect1 = {960,540,960,540};
-//	RH_MPI_VPSS_SetChnCrop(VpssChn2,&crop_rect1);
 	/*UDP Visca协议接收*/
 	RH_UDP_Proto_Start();
 	/*电子云台控制*/
 	RH_PTZ_Contrl_Start();
-	sleep(5);
 //	TestViscaPTZ();	
-	getchar();
-	getchar();
+	while(1) {
+		sleep(10);
+		printf("App Main runing!!!!!!!!!!!!!!!!\n");
+	}
 	
-END_1080P_8:	
+END_1080P_8:		
+	RH_PTZ_Control_Stop();
+	RH_UDP_Proto_Stop();
 	RH_Track_Algorithm_Stop();
 	RH_MPI_VENC_StopGetStream();	
 END_1080P_7:

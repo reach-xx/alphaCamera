@@ -77,4 +77,6 @@ typedef struct __RH_COORD_
 	RECT_S   end_rect;   //自动模式下，移动结束位置
 }RH_Coord;
 
+extern RH_Coord gs_Coord;
+
 #endif   //__RH_PROCOTOL_H
