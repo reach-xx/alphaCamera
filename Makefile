@@ -1,9 +1,10 @@
 # Hisilicon Hi3519 sample Makefile
 
-include ../Makefile.param
+include ./Makefile.param
 
 # target source
 INC := -I./tracker/ \
+   -I./common/ \
    -I./ \
    -I./sender/ \
    -I./protocol/\
