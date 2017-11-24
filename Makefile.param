@@ -220,7 +220,7 @@ MPI_LIBS += $(REL_LIB)/libmd.a
 #MPI_LIBS += $(REL_LIB)/libhidis.a
 
 #COMMON_DIR:=$(PWD)/../common
-COMMON_DIR:=$(PWD)/common
+COMMON_DIR:=$(PWD)/mpp_big-little/common
 
 INC_FLAGS := -I$(COMMON_DIR)
 INC_FLAGS += -I$(REL_INC)
